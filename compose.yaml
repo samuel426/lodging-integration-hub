@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: lodging_hub
+      POSTGRES_USER: lodging
+      POSTGRES_PASSWORD: lodging_local
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lodging -d lodging_hub"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - lodging-postgres-data:/var/lib/postgresql/data
+
+  supplier-mock:
+    image: wiremock/wiremock:3.13.2
+    command: ["--verbose", "--disable-gzip"]
+    ports:
+      - "9090:8080"
+    volumes:
+      - ./mock/wiremock:/home/wiremock:ro
+
+volumes:
+  lodging-postgres-data:
