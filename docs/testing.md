@@ -73,6 +73,7 @@
 - Supplier의 HTTP 4xx/5xx를 공통 실패로 변환합니다.
 - HTTP와 본문 수준의 인증 실패를 동일한 `AUTHENTICATION_ERROR`로 변환합니다.
 - Supplier 인증·요청 거부를 고객의 400/401 응답으로 잘못 전달하지 않습니다.
+- 격리 가능한 Supplier 인증 실패와 다른 Supplier의 정상 결과가 함께 있으면 부분 성공을 유지합니다.
 - HTTP 성공 상태의 본문 실패를 정상으로 오인하지 않습니다.
 - 연결 실패를 `CONNECTION_ERROR`로 분류합니다.
 - 지연 응답을 제한 시간 후 `TIMEOUT`으로 분류합니다.
