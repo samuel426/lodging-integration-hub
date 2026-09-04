@@ -57,6 +57,8 @@ SupplierBatchOutcome
 
 ## 응답 결정표
 
+아래 표는 2026-09-03의 이전 초안입니다. 모든 offer가 잘못되어도 해석된 batch를 성공으로 세는 문제를 [POL-003](search-response-policy.md)에서 재검토 중입니다. 확정된 구현 지침으로 사용하지 않습니다. 새 추천의 판정 순서와 테스트 시나리오는 해당 문서가 검토 기준입니다.
+
 | 성공 batch | 실패 batch | 거절 offer | API 결과 |
 |---:|---:|---:|---|
 | 1개 이상 | 0 | 0 | HTTP 200, `partial=false` |

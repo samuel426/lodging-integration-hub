@@ -2,6 +2,8 @@
 
 상태: Proposed - Gate 2 review
 
+2026-09-04 승인 범위: 소프트 삭제와 catalog 부분 준비는 [POL-001/002](policy-decisions.md)로 확정되었습니다. 전부 정규화 실패 시 검색 응답은 [POL-003](search-response-policy.md) 검토 중이며 전체 설계와 구현 시작은 승인 대기입니다.
+
 ## 설계 목표
 
 시스템은 서로 다른 Supplier 계약을 내부 표준으로 변환하고 하나의 검색 API로 제공합니다. 다음 품질 속성을 우선합니다.

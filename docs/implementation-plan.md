@@ -5,7 +5,7 @@
 | Gate | 검토 대상 | 구현 진행 조건 |
 |---|---|---|
 | Gate 1 | 기술 스택, 주요 도메인 정책 | 승인 완료 |
-| Gate 2 | ERD, API, 패키지, 장애 정책 | 사용자 승인 후 도메인 구현 시작 |
+| Gate 2 | ERD, API, 패키지, 장애 정책 | POL-001/002 승인. POL-003 및 전체 검토 대기. 구현 시작은 별도 승인 필요 |
 | Gate 3 | 필수 검색 흐름과 테스트 결과 | 사용자 승인 후 선택 기능 결정 |
 | Gate 4 | README, Journal, 품질 검사 결과 | 승인 후 최종 병합 |
 
@@ -20,7 +20,12 @@
 - [x] WireMock Compose 구성
 - [x] Testcontainers context test
 - [x] Spotless와 JaCoCo
+- [x] 소프트 삭제와 catalog 부분 준비 정책 승인 기록
+- [ ] 정규화 실패 응답 정책 확정
 - [ ] Gate 2 설계 승인
+- [ ] 사용자 구현 시작 허가
+
+2026-09-04 사용자가 구현 보류를 명시했습니다. [정책 대장](policy-decisions.md)과 [응답 정책 비교](search-response-policy.md)를 검토하며, 도메인 코드 작성과 PR 생성·병합은 진행하지 않습니다.
 
 예상 커밋:
 

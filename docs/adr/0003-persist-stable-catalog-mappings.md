@@ -1,9 +1,10 @@
 # ADR 0003: 안정적인 catalog mapping 영속화
 
-- 상태: Proposed - Gate 2
+- 상태: Accepted - 정책 범위
 - 제안일: 2026-09-03
+- 승인일: 2026-09-04
 
-UUID mapping 영속화와 기존 mapping 보존 원칙은 Gate 1에서 승인되었습니다. 비활성화와 별도 sync state의 상세 정책은 Gate 2 검토 대상입니다.
+UUID mapping 영속화와 기존 mapping 보존 원칙은 Gate 1에서 승인되었습니다. 2026-09-04에 사용자가 소프트 삭제와 catalog 부분 준비 정책을 승인했습니다. [POL-001/002](../policy-decisions.md)에 승인 근거와 검증 항목을 기록합니다. 상세 schema와 전체 Gate 2, 도메인 구현 시작까지 승인된 것은 아닙니다.
 
 ## 배경
 

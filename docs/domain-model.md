@@ -2,6 +2,8 @@
 
 상태: Proposed - Gate 2 review
 
+2026-09-04: mapping 소프트 삭제와 catalog 부분 준비 정책은 [POL-001/002](policy-decisions.md)로 승인되었습니다. 정책 승인과 상세 schema·구현 시작 승인은 구분합니다.
+
 ## 모델링 기준
 
 외부 상품의 정적 정보와 동적 정보를 분리합니다.

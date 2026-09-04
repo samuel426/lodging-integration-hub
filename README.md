@@ -168,6 +168,8 @@ cd backend
 
 ## 설계 문서
 
+- [정책 승인 및 변경 대장](docs/policy-decisions.md)
+- [검색 응답 정책 대안 검토](docs/search-response-policy.md)
 - [아키텍처](docs/architecture.md)
 - [통합 도메인 모델](docs/domain-model.md)
 - [검색 API](docs/api.md)

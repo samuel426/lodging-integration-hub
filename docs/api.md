@@ -2,6 +2,8 @@
 
 상태: Proposed - Gate 2 review
 
+2026-09-04: 소프트 삭제와 catalog 부분 준비 정책은 [POL-001/002](policy-decisions.md)로 승인되었습니다. 전부 정규화 실패한 경우의 200 응답은 아래에 남겨둔 이전 초안이며 확정 계약이 아닙니다. [POL-003 대안 검토](search-response-policy.md)와 HTTP 502 도입 여부는 승인 대기입니다.
+
 ## Endpoint
 
 ```http
@@ -112,7 +114,7 @@ GET /api/v1/stays/search?checkIn=2026-10-10&checkOut=2026-10-12&adults=2&childre
 - 실패 정보는 Supplier와 분류, 실패 batch 수까지만 노출합니다.
 - 외부 URL, API key, 외부 오류 본문, 숙소 코드 목록은 노출하지 않습니다.
 
-정상적으로 해석한 batch의 offer가 모두 잘못된 경우에는 HTTP 200, 빈 `offers`, `partial=true`와 거절 건수를 반환합니다. 품절이나 수용 인원 조건 불일치로 제외한 정상 상품은 거절 건수에 넣지 않습니다.
+이전 제안(미승인)은 정상적으로 해석한 batch의 offer가 모두 잘못된 경우에도 HTTP 200, 빈 `offers`, `partial=true`와 거절 건수를 반환하는 방식입니다. 현재는 유효한 관측 결과가 전혀 없으면 5xx로 구분하는 방향을 [재검토](search-response-policy.md)하고 있습니다. 어느 안에서도 품절이나 수용 인원 조건 불일치로 제외한 정상 상품은 거절 건수에 넣지 않습니다.
 
 일부 Supplier에 catalog 성공 이력이 없으면 준비된 Supplier로 검색을 진행하고 `unavailableCatalogSuppliers`와 `partial=true`로 누락된 검색 범위를 알립니다. 기존 성공 snapshot이 있는 Supplier의 refresh 실패는 이 목록에 넣지 않고 운영 지표로 관찰합니다.
 
