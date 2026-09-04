@@ -1,8 +1,8 @@
 # Architecture
 
-상태: Proposed - Gate 2 review
+상태: 승인된 구현 기준 - 단계별 구현 예정
 
-2026-09-04 승인 범위: 소프트 삭제와 catalog 부분 준비는 [POL-001/002](policy-decisions.md)로 확정되었습니다. 전부 정규화 실패 시 검색 응답은 [POL-003](search-response-policy.md) 검토 중이며 전체 설계와 구현 시작은 승인 대기입니다.
+2026-09-04 승인 범위: [POL-001~003](policy-decisions.md)과 구현 시작을 승인했습니다. 검색 응답에는 [C안](search-response-policy.md)을 적용합니다. 새 제품 정책이나 선택 기능은 별도 승인을 받습니다.
 
 ## 설계 목표
 

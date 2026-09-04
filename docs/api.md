@@ -1,8 +1,8 @@
 # Search API
 
-상태: Proposed - Gate 2 review
+상태: 승인된 설계 - 검색 API 미구현
 
-2026-09-04: 소프트 삭제와 catalog 부분 준비 정책은 [POL-001/002](policy-decisions.md)로 승인되었습니다. 전부 정규화 실패한 경우의 200 응답은 아래에 남겨둔 이전 초안이며 확정 계약이 아닙니다. [POL-003 대안 검토](search-response-policy.md)와 HTTP 502 도입 여부는 승인 대기입니다.
+2026-09-04: [POL-001~003](policy-decisions.md)이 승인되었습니다. [C안](search-response-policy.md)에 따라 유효한 관측 결과가 있을 때만 200을 반환하며, 외부 데이터 불능은 502로 구분합니다.
 
 ## Endpoint
 
@@ -107,18 +107,30 @@ GET /api/v1/stays/search?checkIn=2026-10-10&checkOut=2026-10-12&adults=2&childre
 
 ## 부분 성공
 
-하나 이상의 batch가 성공하고 일부 batch가 실패하면 HTTP 200을 반환합니다. 개별 offer만 잘못된 경우에도 나머지 유효한 offer는 유지하며 `rejectedOfferCount`로 제외 사실을 알립니다.
+하나 이상의 유효한 관측 결과가 있고 일부 범위가 실패하면 HTTP 200을 반환합니다. 유효한 관측은 검증된 offer(업무 필터링 전), 명시적 빈 availability batch, 정상 빈 catalog입니다. 개별 offer만 잘못된 경우 나머지 유효한 offer를 유지하며 `rejectedOfferCount`로 제외 사실을 알립니다.
 
 - 성공한 상품은 그대로 제공합니다.
 - 같은 Supplier의 다른 성공 batch도 버리지 않습니다.
 - 실패 정보는 Supplier와 분류, 실패 batch 수까지만 노출합니다.
 - 외부 URL, API key, 외부 오류 본문, 숙소 코드 목록은 노출하지 않습니다.
 
-이전 제안(미승인)은 정상적으로 해석한 batch의 offer가 모두 잘못된 경우에도 HTTP 200, 빈 `offers`, `partial=true`와 거절 건수를 반환하는 방식입니다. 현재는 유효한 관측 결과가 전혀 없으면 5xx로 구분하는 방향을 [재검토](search-response-policy.md)하고 있습니다. 어느 안에서도 품절이나 수용 인원 조건 불일치로 제외한 정상 상품은 거절 건수에 넣지 않습니다.
+본문 파싱에 성공해도 모든 offer가 잘못되고 정상 빈 관측도 없으면 200이 아닙니다. 아래 오류 코드와 [판정 순서](search-response-policy.md#5-최종-응답의-판정-순서)를 적용합니다. 품절이나 수용 인원 조건 불일치로 제외한 검증된 정상 상품은 거절 건수에 넣지 않습니다.
 
 일부 Supplier에 catalog 성공 이력이 없으면 준비된 Supplier로 검색을 진행하고 `unavailableCatalogSuppliers`와 `partial=true`로 누락된 검색 범위를 알립니다. 기존 성공 snapshot이 있는 Supplier의 refresh 실패는 이 목록에 넣지 않고 운영 지표로 관찰합니다.
 
 ## 오류 응답
+
+| HTTP | code | 조건 |
+|---|---|---|
+| 400 | `INVALID_SEARCH_CONDITION` | 고객 요청 검증 실패 |
+| 500 | `INTERNAL_ERROR` | 예상하지 못한 내부 결함 |
+| 503 | `CATALOG_NOT_READY` | 모든 Supplier catalog 성공 이력 없음 |
+| 500 | `INTEGRATION_CONFIGURATION_ERROR` | 유효한 관측 없이 연동 요청·인증 오류 |
+| 503 | `CATALOG_MAPPING_UNAVAILABLE` | 유효한 관측 없이 내부 mapping 불일치 |
+| 502 | `NO_VALID_SUPPLIER_DATA` | 유효한 관측 없이 외부 데이터 계약 위반 |
+| 503 | `ALL_SUPPLIERS_UNAVAILABLE` | 유효한 관측 없이 외부 이용 불가 |
+
+오류는 모두 `error.code`, 안전한 `message`, `fieldErrors` 배열, `traceId`를 사용합니다. 상품 0건이라는 이유만으로 5xx를 반환하지 않습니다. 내부 결함과 catalog 미준비를 먼저 판정하고, 나머지 혼합 오류는 위 표의 순서를 따릅니다. Supplier 인증 실패를 고객의 401로 전달하지 않습니다.
 
 ### 잘못된 요청
 
@@ -159,9 +171,9 @@ HTTP/1.1 503 Service Unavailable
 }
 ```
 
-모든 Supplier의 catalog 동기화가 한 번도 성공하지 않았을 때 사용합니다. 정상적으로 빈 catalog를 반영한 성공 이력이 있다면 활성 매핑이 0개여도 HTTP 200과 빈 결과를 반환합니다.
+모든 Supplier의 catalog 동기화가 한 번도 성공하지 않았을 때 사용합니다. 준비된 catalog가 모두 정상 빈 snapshot이면 HTTP 200과 빈 결과를 반환하며, 나머지 미준비 Supplier가 있다면 부분 성공 metadata를 포함합니다.
 
-### 모든 외부 조회 실패
+### 모든 외부 조회 이용 불가
 
 ```http
 HTTP/1.1 503 Service Unavailable

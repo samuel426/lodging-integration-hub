@@ -1,6 +1,6 @@
 # Supplier Integration Resilience
 
-상태: Proposed - Gate 2 review
+상태: 승인된 설계 - 단계별 구현 예정
 
 ## 기본 원칙
 
@@ -44,11 +44,13 @@ flowchart TD
     Quarantine --> Partial[Keep other valid offers]
 ```
 
-예외를 reactive chain 밖으로 전파해 전체를 중단하지 않고 각 batch를 부분 성공도 표현할 수 있는 결과로 변환합니다.
+알려진 외부 오류는 각 batch의 결과로 변환해 다른 batch를 보존합니다. 예상하지 못한 내부 결함까지 포괄적으로 잡아 외부 오류로 바꾸지 않습니다.
 
 ```text
 SupplierBatchOutcome
 - validOffers
+- validOfferCountBeforeBusinessFiltering
+- isValidatedEmptyBatch
 - rejectedOfferCount
 - failure nullable
 ```
@@ -57,15 +59,19 @@ SupplierBatchOutcome
 
 ## 응답 결정표
 
-아래 표는 2026-09-03의 이전 초안입니다. 모든 offer가 잘못되어도 해석된 batch를 성공으로 세는 문제를 [POL-003](search-response-policy.md)에서 재검토 중입니다. 확정된 구현 지침으로 사용하지 않습니다. 새 추천의 판정 순서와 테스트 시나리오는 해당 문서가 검토 기준입니다.
+2026-09-04 승인된 [POL-003 C안](search-response-policy.md)을 적용합니다. 정상 빈 catalog는 외부 batch 수에 넣지 않고 별도 관측으로 집계합니다.
 
-| 성공 batch | 실패 batch | 거절 offer | API 결과 |
-|---:|---:|---:|---|
-| 1개 이상 | 0 | 0 | HTTP 200, `partial=false` |
-| 1개 이상 | 0 이상 | 1개 이상 | HTTP 200, `partial=true` |
-| 1개 이상 | 1개 이상 | 0 이상 | HTTP 200, `partial=true` |
-| 0 | 1개 이상 | 0 이상 | HTTP 503, `ALL_SUPPLIERS_UNAVAILABLE` |
-| 모든 batch 성공, offer 없음 | 0 | 0 | HTTP 200, 빈 결과 |
+| 유효한 관측 | 누락·오류 | API 결과 |
+|---|---|---|
+| 있음 | 없음 | 200, `partial=false` |
+| 있음 | batch 실패, offer 거절 또는 미준비 catalog | 200, `partial=true` |
+| 없음 | 외부 계약 위반 | 502, `NO_VALID_SUPPLIER_DATA` |
+| 없음 | 외부 이용 불가 | 503, `ALL_SUPPLIERS_UNAVAILABLE` |
+| 없음 | 내부 mapping 불일치 | 503, `CATALOG_MAPPING_UNAVAILABLE` |
+| 없음 | 연동 요청·인증 설정 문제 | 500, `INTEGRATION_CONFIGURATION_ERROR` |
+| 관계없음 | 예상하지 못한 내부 결함 | 500, `INTERNAL_ERROR` |
+
+혼합 오류의 우선순위는 [정책 판정 순서](search-response-policy.md#5-최종-응답의-판정-순서)에 따릅니다.
 
 성공 batch가 빈 목록을 반환한 것은 장애가 아닙니다.
 

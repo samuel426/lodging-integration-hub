@@ -1,8 +1,8 @@
 # Unified Domain Model
 
-상태: Proposed - Gate 2 review
+상태: 승인된 구현 기준 - 단계별 구현 예정
 
-2026-09-04: mapping 소프트 삭제와 catalog 부분 준비 정책은 [POL-001/002](policy-decisions.md)로 승인되었습니다. 정책 승인과 상세 schema·구현 시작 승인은 구분합니다.
+2026-09-04: [POL-001~003](policy-decisions.md)과 구현 시작이 승인되었습니다. 아래 schema를 구현 기준으로 삼고 상세 조정은 migration과 테스트에 맞춰 기록합니다.
 
 ## 모델링 기준
 
