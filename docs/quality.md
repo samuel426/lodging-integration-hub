@@ -44,3 +44,11 @@ Trivy의 `fs`는 빌드 전 manifest/lockfile 검사이며 JAR 검사에는 `roo
 ## API contracts
 
 Catalog 단계에서는 Supplier HTTP 계약을 검사합니다. 공개 검색 Controller/OpenAPI가 추가되면 Controller 테스트와 문서 계약 검사를 같은 PR에 포함합니다. 아직 없는 API를 검사 완료로 기록하지 않습니다.
+
+## 2026-09-04 dependency remediation
+
+Trivy가 실행 JAR의 Tomcat 11.0.24에서 CVE-2026-65182, CVE-2026-65905, CVE-2026-68525를 CRITICAL로 탐지했습니다. 실제 사용 버전은 Gradle `dependencyInsight`로 확인했습니다. 탐지는 현재 설정에서의 악용 가능성이 입증되었다는 뜻은 아닙니다. 공급자의 영향도 등급과 스캐너의 점수 체계도 다를 수 있습니다.
+
+Apache의 수정 버전 안내에 따라 Spring Boot 4.0.8은 유지하고 `tomcat.version=11.0.25`로 Tomcat 모듈 전체를 일관되게 올렸습니다. 해당 패치 이상을 관리하는 Boot BOM으로 갱신할 때 override 제거를 검토합니다. [Apache Tomcat 11 보안 안내](https://tomcat.apache.org/security-11.html)
+
+패치 후 `spotlessCheck test build`(PMD 포함)가 통과했고 실제 실행 JAR 대상의 재검사에서 HIGH/CRITICAL 0건을 확인했습니다. 기반 단계 테스트는 PostgreSQL context 1건이며 검색 기능 검증이나 높은 기능 커버리지를 의미하지 않습니다.

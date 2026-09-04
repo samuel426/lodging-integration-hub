@@ -11,6 +11,9 @@ group = "io.github.samuel426"
 version = "0.0.1-SNAPSHOT"
 description = "Backend platform for integrating accommodation suppliers"
 
+// Remove after the Spring Boot BOM manages Tomcat 11.0.25 or later; see docs/quality.md.
+extra["tomcat.version"] = "11.0.25"
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)

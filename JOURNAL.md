@@ -135,3 +135,11 @@ AI는 요구사항 구조화, 기술 대안 비교, 공식 문서 확인, 프로
 기반 브랜치를 PR로 정리한 뒤 최신 `dev`에서 `feat/catalog-sync`를 생성합니다. 첫 구현 단위는 안정적 ID mapping, 전체 snapshot의 원자적 반영, 비활성화·재활성화, 성공 이력과 실패 격리입니다. 검색 API와 C안의 S01~S16 실제 검증은 후속 통합 검색 단계입니다.
 
 정적 분석은 Gradle 내장 PMD 플러그인과 error-prone 규칙을 사용합니다. 별도 분석 서버 없이 빌드에서 반복할 수 있고, 코드 포맷과 오류 패턴 분석을 분리합니다. Gradle 9.7.1의 지원 범위에 있는 PMD 7.24.0을 고정했습니다. [Gradle PMD 문서](https://docs.gradle.org/current/userguide/pmd_plugin.html)
+
+### 기반 품질 점검
+
+- PMD, Spotless, test, build 통과. 테스트는 PostgreSQL context 1건입니다.
+- Trivy `fs`는 JAR를 검사하지 않아 첫 실행을 무효로 판단했습니다. `rootfs`로 변경해 실제 JAR를 검사했습니다.
+- Tomcat 11.0.24의 CRITICAL 3건을 발견하고 공식 수정 버전 11.0.25로 패치했습니다. 재빌드·테스트와 실제 JAR 재검사에서 HIGH/CRITICAL 0건을 확인했습니다.
+- 작업 파일 Gitleaks에서 비밀정보가 발견되지 않았습니다. 공개 검색 API는 아직 없어 계약 검증은 해당 구현 단계로 남깁니다.
+- JaCoCo 기반 코드 line coverage는 1/3입니다. entry point가 포함된 작은 분모이며 기능 완성도를 나타내지 않습니다.
