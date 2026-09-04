@@ -1,0 +1,36 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/b/api/properties",
+    "headers": {
+      "X-Api-Key": {
+        "equalTo": "local-mock-b"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "resultCode": "0000",
+      "resultMessage": "SUCCESS",
+      "data": {
+        "items": [
+          {
+            "propertyId": "meadow-201",
+            "propertyName": "Meadow House",
+            "rooms": [
+              {
+                "roomId": "twin",
+                "roomName": "Courtyard Twin",
+                "maxOccupancy": 3
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
