@@ -143,3 +143,37 @@ AI는 요구사항 구조화, 기술 대안 비교, 공식 문서 확인, 프로
 - Tomcat 11.0.24의 CRITICAL 3건을 발견하고 공식 수정 버전 11.0.25로 패치했습니다. 재빌드·테스트와 실제 JAR 재검사에서 HIGH/CRITICAL 0건을 확인했습니다.
 - 작업 파일 Gitleaks에서 비밀정보가 발견되지 않았습니다. 공개 검색 API는 아직 없어 계약 검증은 해당 구현 단계로 남깁니다.
 - JaCoCo 기반 코드 line coverage는 1/3입니다. entry point가 포함된 작은 분모이며 기능 완성도를 나타내지 않습니다.
+
+## 2026-09-04 - Catalog mapping 구현
+
+### 브랜치와 작업 범위
+
+기반 작업은 [PR #1](https://github.com/samuel426/lodging-integration-hub/pull/1)로 `dev`에 squash merge했습니다. 원격 `dev`를 다시 받아 `feat/catalog-sync`를 생성했습니다. `main`은 변경하지 않았습니다.
+
+카탈로그 단계만 구현했습니다. Flyway V1, 숙소·객실과 외부 key mapping, Supplier별 성공 상태, A/B WebClient 어댑터, startup sync, 불변 조회 snapshot을 포함합니다. 검색 API와 가격·재고 정규화는 후속 단위입니다.
+
+### 구현 판단
+
+- 비활성 mapping까지 조회한 뒤 기존 ID를 재사용합니다. 외부 코드 문자열을 임의로 변경하거나 Supplier 간 자동 병합하지 않습니다.
+- 필수 목록 누락과 명시적 빈 목록을 구분하고 중복 key를 전체 snapshot 반영 전에 거부합니다. 잘못된 일부 catalog를 부분 반영하면 정상 누락과 계약 오류가 섞이므로 전체 실패로 처리합니다.
+- HTTP 호출과 DB 반영을 다른 서비스 경계로 분리했습니다. `NEVER`와 `REQUIRES_NEW`로 실수로 외부 호출이 트랜잭션에 들어가는 것을 방지합니다.
+- 조회는 여러 SQL 사이에 refresh가 끼어들어 섞인 상태를 만들지 않도록 읽기 전용 `REPEATABLE_READ`를 사용합니다. 이는 새 제품 정책이 아니라 승인된 원자적 snapshot을 읽는 기술적 보강입니다.
+- JSON 수용 인원을 소수·문자열에서 자동 변환하지 않습니다. 외부 코드도 숫자에서 문자열로 보충하지 않습니다.
+- 단순 catalog DTO 변환은 Supplier별 DTO 안에 두고, 공통 불변식은 `SupplierCatalog`에서 검사합니다. availability 계산용 mapper는 후속 단계입니다.
+- 네트워크 라이브러리 초기화는 실제 요청 전에 warmup합니다. 초기 전체 테스트의 첫 HTTP 호출이 TIMEOUT이었지만 분리 재실행에서는 통과해 초기화 비용을 의심했습니다. 단일 원인을 계측으로 확정한 것은 아닙니다. 2초 deadline을 늘리지 않았으며 이후 전체 검증과 실제 시작 시 동기화가 통과했습니다.
+- PMD 지적에 따라 Entity 생성자에서 재정의 가능한 메서드를 호출하지 않도록 수정했습니다. 성공 시 이전 실패 분류를 null로 지우는 승인된 정책만 메서드 범위에서 설명과 함께 억제했습니다.
+- 테스트 문자열을 상수로 정리하면서 text block의 JSON을 깨뜨린 오류를 발견해 수정했습니다. 이때 동기화 코드가 잘못된 응답을 반영하지 않고 이전 객실을 보존한 것을 확인했습니다.
+
+### 실행 결과와 한계
+
+- 전체 테스트 61건 통과, 실패·오류·skip 0. `test --rerun-tasks`로 동일 결과 재확인.
+- Spotless, PMD, build 통과. 현재 production line 442/460(96.1%), branch 130/158(82.3%). 미구현 검색 기능의 완성도 수치는 아닙니다.
+- HTTP 상태 오류, B 본문 오류, 잘못된 JSON/필드/타입/크기, 연결 거부, 지연·drip 응답을 검증했습니다.
+- PostgreSQL unique/check 제약, Supplier 단위 rollback, 성공 시각 보존, 비활성화·재활성화를 검증했습니다.
+- 실행 JAR와 Compose로 두 Supplier sync 성공, health UP, 숙소 2개·객실 3개를 확인했습니다. 같은 DB 재시작 전후의 모든 숙소·객실 mapping UUID가 일치했습니다.
+- 실행 JAR 의존성 Trivy 검사에서 HIGH/CRITICAL 0건을 확인했습니다. 테스트/빌드 도구와 인프라 이미지 전체를 검사한 것은 아닙니다.
+- 최초 동기화 결과는 준비 상태 조회 모델까지 제공하며, 검색 200/503과 C안 S01~S16의 HTTP 연결은 Phase 3에 남습니다. 동시 다중 인스턴스 sync, 주기 refresh, retry/circuit breaker, 대규모 catalog 부하 검증은 추가하지 않았습니다.
+
+상세 동작과 재현 방법은 [Catalog 운영 문서](docs/catalog-sync.md), 정책별 구현·테스트 연결은 [정책 대장](docs/policy-decisions.md)에 정리했습니다.
+
+최종 문서 점검에서 로컬 링크 69개와 JSON 예시·fixture 8개가 유효했습니다. 빌드 중 생성 cache lock을 읽지 못한 Gitleaks 실행은 불완전한 검사로 보고, Gradle 종료 후 파일 검사와 stage 검사를 다시 실행해 읽기 오류 및 비밀정보 탐지가 없음을 확인했습니다. 검증용 Java 프로세스와 Compose 서비스는 종료하고 DB volume은 보존했습니다.

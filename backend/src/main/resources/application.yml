@@ -15,6 +15,21 @@ spring:
 server:
   shutdown: graceful
 
+catalog:
+  sync-on-startup: ${CATALOG_SYNC_ON_STARTUP:true}
+
+suppliers:
+  a:
+    base-url: ${SUPPLIER_A_BASE_URL:http://localhost:9090}
+    api-key: ${SUPPLIER_A_API_KEY:local-mock-a}
+  b:
+    base-url: ${SUPPLIER_B_BASE_URL:http://localhost:9090}
+    api-key: ${SUPPLIER_B_API_KEY:local-mock-b}
+  connect-timeout: 500ms
+  response-timeout: 2s
+  request-timeout: 2s
+  max-in-memory-bytes: 4194304
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
