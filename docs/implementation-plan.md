@@ -11,7 +11,7 @@
 
 ## Phase 0 - Repository foundation
 
-상태: 진행 중
+상태: 완료 - PR #1을 `dev`에 squash merge
 
 - [x] 저장소 규칙 작성
 - [x] `main`, `dev`, feature branch 준비
@@ -38,6 +38,8 @@
 
 브랜치: `feat/catalog-sync`
 
+상태: 구현 및 로컬 검증 완료. 검색 API는 포함하지 않습니다.
+
 - Flyway V1 schema
 - Stay와 RoomType Entity
 - Supplier stay/room mapping Entity
@@ -48,6 +50,8 @@
 - startup synchronization
 - idempotency 및 실패 격리 테스트
 - catalog metric과 로그
+
+검증 결과: 전체 테스트 61건(실패·오류·skip 0), PMD/Spotless/build 통과. 기본 실행 JAR로 시작 시 동기화 및 동일 DB 재시작 시 UUID 유지 확인. HTTP timeout과 인증·본문 오류를 포함한 catalog 계약/DB 통합 검증은 [테스트 기록](testing.md#2026-09-04-catalog-구현-검증)에 있습니다.
 
 완료 조건:
 

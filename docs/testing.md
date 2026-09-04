@@ -97,6 +97,25 @@
 - `children < 0`
 - field error와 traceId 포함 여부
 
+## 2026-09-04 Catalog 구현 검증
+
+전체 61건 통과, 실패·오류·skip 0건입니다. 전체 테스트를 캐시 없이 다시 실행해 같은 결과를 확인했습니다. 검색 API, 가격·재고, batch 병렬성과 S01~S16은 아직 구현하지 않았으며 아래 수치에 포함되지 않습니다.
+
+| Suite | 건수 | 검증 대상 |
+|---|---:|---|
+| `CatalogIntegrationTest` | 39 | PostgreSQL 원자성·ID·준비 상태 및 WireMock HTTP 계약 |
+| `SupplierCatalogTest` | 9 | 전체 snapshot 검증, 외부 키 범위, 불변 목록 |
+| `CatalogSyncServiceTest` | 4 | 실패 격리, 내부 결함 전파, metric 판정 |
+| `SupplierClientPropertiesTest` | 7 | 설정 검증과 문자열 표현의 비밀값 비노출 |
+| `SupplierRoomTypeMappingTest` | 1 | 다른 숙소 소유 객실의 mapping 생성 거부 |
+| `LodgingIntegrationHubApplicationTests` | 1 | Flyway/JPA/PostgreSQL 컨텍스트 |
+
+[Catalog 통합 테스트 코드](../backend/src/test/java/io/github/samuel426/lodginghub/catalog/service/CatalogIntegrationTest.java)는 실제 PostgreSQL과 WireMock 컨테이너를 사용합니다. 테스트마다 자체 DB 테이블과 자체 mock을 초기화하며 로컬 Compose DB를 건드리지 않습니다. 공개 Controller는 아직 없어 이 단계에 Controller/Slice 테스트는 해당하지 않습니다.
+
+JaCoCo production line coverage는 442/460(96.1%), branch coverage는 130/158(82.3%)입니다. 현재 존재하는 코드의 수치이며 전체 제품 기능 완성도가 아닙니다. 실행 JAR smoke는 계측 테스트 수치에 포함하지 않습니다.
+
+실행 JAR smoke: health UP, 두 Supplier sync 성공, 숙소 2개·객실 3개 저장. 동일 DB 재시작 뒤 숙소·객실 mapping UUID 유지 확인. 자세한 재현 명령은 [Catalog 운영 문서](catalog-sync.md)를 참고합니다.
+
 ## 테스트 데이터 원칙
 
 - 외부에서 제공된 예시를 그대로 복사하지 않고 계약 구조만 만족하는 독립 fixture를 만듭니다.

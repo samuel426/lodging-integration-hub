@@ -23,6 +23,7 @@ response timeout은 전체 검색 요청의 2초 완료를 보장하지 않습�
 
 - Supplier별 base URL과 API key를 분리합니다.
 - Reactor Netty connection timeout과 response timeout을 명시합니다.
+- 최초 요청 전 네트워크 런타임을 warmup합니다. Supplier HTTP 호출이나 응답 cache 생성은 아닙니다.
 - 응답 전체 수신과 역직렬화가 끝나는 publisher에도 2초 deadline을 적용해 조금씩 데이터를 보내는 응답이 계속 연결을 점유하지 못하게 합니다.
 - API key는 header filter에서 주입하고 로그에서 마스킹합니다.
 - 응답 크기 제한을 설정해 비정상적으로 큰 본문으로부터 메모리를 보호합니다.

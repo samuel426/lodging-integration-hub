@@ -18,6 +18,8 @@ JDK 21과 Docker를 준비하고 `backend/`에서 실행합니다. Windows에서
 
 커버리지 수치만으로 정확성을 주장하지 않습니다. 아직 구현하지 않은 기능은 커버리지 분모에도 없으므로 테스트 시나리오 충족 여부를 별도로 추적합니다. [Gradle PMD 문서](https://docs.gradle.org/current/userguide/pmd_plugin.html)
 
+예외적으로 `SupplierCatalogSyncState.succeed`의 `PMD.NullAssignment`만 메서드 범위에서 억제합니다. 성공 후 실패 분류를 `null`로 지우는 것이 승인된 DB 정책이기 때문입니다. 전체 규칙을 비활성화하지 않으며 나머지 생성자 호출·명명·중복 리터럴 지적은 수정했습니다.
+
 ## Secret scan
 
 저장소 루트에서 실행합니다. Docker 마운트 경로는 현재 저장소의 절대 경로를 사용합니다.
@@ -28,6 +30,8 @@ docker run --rm -v "$PWD:/repo:ro" -w /repo zricethezav/gitleaks:v8.27.2 git --r
 ```
 
 실제 비밀값을 검사 결과나 문서에 복사하지 않습니다. 첫 명령은 작업 파일, 두 번째는 Git 이력을 검사합니다.
+
+Gradle 실행 중에는 생성된 cache lock 파일 읽기가 실패할 수 있습니다. 빌드 종료 후 재검사하고, PR에 들어갈 파일은 `git --staged --redact --no-banner`로 별도 검사합니다. 종료 코드 0만 보고 파일 읽기 오류를 무시하지 않습니다.
 
 ## Runtime dependency vulnerabilities
 

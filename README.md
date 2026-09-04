@@ -9,12 +9,15 @@
 - Spring Boot 실행 기반 구성
 - PostgreSQL 및 Flyway 구성
 - WireMock 기반 Supplier mock 실행 환경 구성
-- Testcontainers PostgreSQL 컨텍스트 테스트 구성
-- 아키텍처와 API 계약 승인, catalog 구현 시작
+- Supplier A/B catalog HTTP 어댑터와 시작 시 동기화
+- 내부 숙소·객실 ID mapping, 소프트 삭제와 재활성화
+- Supplier별 성공 이력과 실패 보존, 조회용 불변 snapshot
+- Testcontainers PostgreSQL 및 WireMock 계약·통합 테스트
+- 검색 API와 실시간 가격·재고 정규화는 후속 구현 예정
 
 2026-09-04 C안 응답 정책과 구현 시작을 승인받았습니다. 기능별 구현과 검증 결과는 문서에 구분해 기록합니다.
 
-현재 Flyway migration과 검색 Controller는 아직 없습니다. 따라서 기동 시 migration 없음 경고가 나타나고 OpenAPI의 검색 경로도 비어 있습니다. 이는 기반 구성 단계의 상태이며 검색 기능이 완성되었다는 뜻은 아닙니다.
+Flyway V1이 catalog 테이블을 생성하고 시작 시 local mock의 정적 상품을 동기화합니다. 검색 Controller는 아직 없어 OpenAPI의 검색 경로는 비어 있습니다. catalog 준비 상태와 애플리케이션 health는 서로 다른 지표입니다.
 
 ## 목표
 
@@ -141,12 +144,17 @@ DB 데이터를 포함한 volume까지 삭제하려면 개발 데이터가 필�
 | `DB_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://localhost:5432/lodging_hub` |
 | `DB_USERNAME` | DB 사용자 | `lodging` |
 | `DB_PASSWORD` | DB 비밀번호 | 로컬 Compose 전용 값 |
+| `SUPPLIER_A_BASE_URL` | Supplier A HTTP base URL | `http://localhost:9090` |
+| `SUPPLIER_B_BASE_URL` | Supplier B HTTP base URL | `http://localhost:9090` |
+| `SUPPLIER_A_API_KEY` | Supplier A 인증 헤더 값 | 로컬 mock 전용 값 |
+| `SUPPLIER_B_API_KEY` | Supplier B 인증 헤더 값 | 로컬 mock 전용 값 |
+| `CATALOG_SYNC_ON_STARTUP` | 시작 시 1회 동기화 | `true` |
 
 실제 비밀값은 커밋하지 않습니다. 변수 이름은 [.env.example](.env.example)에서 확인할 수 있습니다.
 
 Spring Boot를 `bootRun`으로 실행할 때 `.env`가 자동으로 로드되지는 않습니다. 값을 바꾸려면 실행 shell 또는 IDE의 환경 변수로 전달합니다. Compose의 고정 사용자와 비밀번호는 폐기 가능한 로컬 개발용으로만 사용합니다. 이 구성은 인증이 없는 로컬 실행용이며 운영 배포 설정이 아닙니다.
 
-Supplier URL, API key, 타임아웃 및 동시성 설정은 어댑터 구현과 함께 추가합니다.
+외부 호출은 연결 500ms, 응답 읽기 2s, 전체 본문 수신·역직렬화 deadline 2s, 본문 메모리 상한 4MiB를 사용합니다. `suppliers.*` Spring 설정으로 조정할 수 있습니다. 검색 동시성 설정은 availability 단계에서 추가합니다. [Catalog 운영 안내](docs/catalog-sync.md)에 재실행·실패 확인 절차를 정리합니다.
 
 ## 품질 검사
 
@@ -177,6 +185,7 @@ PMD는 `build`에 포함됩니다. 비밀정보 및 실행 JAR 의존성 검사 
 - [검색 API](docs/api.md)
 - [외부 연동 견고성](docs/resilience.md)
 - [테스트 전략](docs/testing.md)
+- [Catalog 동기화와 운영](docs/catalog-sync.md)
 - [구현 계획](docs/implementation-plan.md)
 - [확장 설계와 현재 한계](docs/extensions.md)
 - [AI 활용 기록](docs/ai-usage.md)
