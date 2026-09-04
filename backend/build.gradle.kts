@@ -1,6 +1,7 @@
 plugins {
     java
     jacoco
+    pmd
     id("org.springframework.boot") version "4.0.8"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "8.10.1"
@@ -57,6 +58,12 @@ tasks.jacocoTestReport {
         xml.required = true
         html.required = true
     }
+}
+
+pmd {
+    toolVersion = "7.24.0"
+    isConsoleOutput = true
+    ruleSets = listOf("category/java/errorprone.xml")
 }
 
 spotless {

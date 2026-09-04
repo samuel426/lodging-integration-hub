@@ -10,9 +10,9 @@
 - PostgreSQL 및 Flyway 구성
 - WireMock 기반 Supplier mock 실행 환경 구성
 - Testcontainers PostgreSQL 컨텍스트 테스트 구성
-- 아키텍처와 API 계약 설계 검토 진행 중
+- 아키텍처와 API 계약 승인, catalog 구현 시작
 
-핵심 도메인 구현은 설계 검토가 끝난 뒤 시작합니다.
+2026-09-04 C안 응답 정책과 구현 시작을 승인받았습니다. 기능별 구현과 검증 결과는 문서에 구분해 기록합니다.
 
 현재 Flyway migration과 검색 Controller는 아직 없습니다. 따라서 기동 시 migration 없음 경고가 나타나고 OpenAPI의 검색 경로도 비어 있습니다. 이는 기반 구성 단계의 상태이며 검색 기능이 완성되었다는 뜻은 아닙니다.
 
@@ -63,7 +63,7 @@
 | Persistence | Spring Data JPA, PostgreSQL 17, Flyway |
 | API documentation | SpringDoc OpenAPI |
 | Test | JUnit 6 (Jupiter), AssertJ, Testcontainers, WireMock |
-| Quality | Spotless, JaCoCo |
+| Quality | Spotless, PMD, JaCoCo, Gitleaks, Trivy |
 | Local environment | Docker Compose |
 
 Spring Boot 3.5 계열도 검토했지만 [3.5.16이 마지막 OSS 릴리스라는 공식 안내](https://spring.io/blog/2026/06/25/spring-boot-3-5-16-available-now)를 확인해 새 프로젝트의 기반으로 선택하지 않았습니다. 최신 기능 도입보다 지원 중인 안정적인 4.0 패치 계열을 사용하는 것을 우선했습니다.
@@ -166,6 +166,8 @@ cd backend
 
 테스트는 로컬에 설치된 DB 대신 Testcontainers PostgreSQL을 사용합니다. Docker가 실행 중이어야 합니다.
 
+PMD는 `build`에 포함됩니다. 비밀정보 및 실행 JAR 의존성 검사 명령과 적용 범위는 [품질 검사 문서](docs/quality.md)를 참고합니다.
+
 ## 설계 문서
 
 - [정책 승인 및 변경 대장](docs/policy-decisions.md)
@@ -191,8 +193,8 @@ cd backend
 - 가격은 세금을 포함한 전체 숙박 기간 결제 금액을 공통 기준으로 사용합니다.
 - 예약 가능 객실 수는 요청한 모든 숙박일의 재고 최솟값입니다.
 - 품절 상품은 검색 결과에서 제외합니다.
-- 일부 호출이 성공하면 HTTP 200과 실패 메타데이터를 함께 반환합니다.
-- 모든 외부 조회가 실패하면 HTTP 503을 반환합니다.
+- 유효한 관측 결과가 있으면 HTTP 200과 필요 시 부분 실패 metadata를 반환합니다.
+- 관측 결과가 없으면 C안에 따라 데이터 불능 502, 이용 불가 503, 내부 문제 500 등으로 구분합니다.
 
 각 결정의 배경과 대안은 ADR에서 확인할 수 있습니다.
 
