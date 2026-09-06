@@ -45,6 +45,10 @@ Trivy의 `fs`는 빌드 전 manifest/lockfile 검사이며 JAR 검사에는 `roo
 
 검사 범위는 실행 JAR 안의 runtime 의존성입니다. JDK, PostgreSQL/WireMock 컨테이너 이미지, 테스트 및 빌드 도구의 전체 의존성은 이 명령의 대상이 아닙니다. 사용한 취약점 DB 시점에 알려진 HIGH/CRITICAL을 확인하는 것이며 모든 취약점 부재를 보장하지 않습니다. 캐시 volume에는 공개 검사 DB가 남습니다.
 
+### 2026-09-06 검사 기록
+
+카탈로그 보완 실행 JAR의 HIGH/CRITICAL은 0건입니다. DB mirror 다운로드가 EOF로 중단되고 GHCR도 접근 거부되어 `--skip-db-update --skip-java-db-update`로 보존된 DB를 사용했습니다. metadata의 UpdatedAt은 `2026-09-05T07:05:47Z`, DownloadedAt은 `2026-09-05T09:29:30Z`입니다. 최신 DB 검사로 표시하지 않으며 외부 다운로드 복구 후 갱신 검사를 다시 수행합니다. stage 비밀정보 검사에서는 11,662 bytes를 검사했고 탐지 0건입니다.
+
 ## API contracts
 
 Catalog 단계에서는 Supplier HTTP 계약을 검사합니다. 공개 검색 Controller/OpenAPI가 추가되면 Controller 테스트와 문서 계약 검사를 같은 PR에 포함합니다. 아직 없는 API를 검사 완료로 기록하지 않습니다.
