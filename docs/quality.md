@@ -65,3 +65,5 @@ Apache의 수정 버전 안내에 따라 Spring Boot 4.0.8은 유지하고 `tomc
 ## 2026-09-06 Availability 빌드
 
 전체 108건과 Spotless/PMD/build 통과. Trivy 실제 JAR HIGH/CRITICAL 0건. DB 갱신 네트워크 제한으로 2026-09-05 07:05 UTC DB를 재사용했으며 최신 DB 검사로 간주하지 않습니다.
+
+통합 검색 변경: 전체 151건·Spotless·PMD·build 통과, staged Gitleaks 탐지 0. 실행 JAR Trivy HIGH/CRITICAL 0(동일 2026-09-05 DB).

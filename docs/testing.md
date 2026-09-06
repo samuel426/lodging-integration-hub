@@ -154,3 +154,7 @@ cd backend
 ## 2026-09-06 Availability 검증
 
 전체 108건 실패 0, Spotless·PMD·build 통과. HTTP 인코딩/헤더와 A/B 실패 분류, 개별 거절, gross 가격/기간 재고, 0·1·49·50·51·101개 분할을 검증했습니다.
+
+## 2026-09-06 통합 검색 검증
+
+전체 151건 실패 0. S01~S16, 최대 동시성 4, Controller/Slice, 실제 PostgreSQL·WireMock HTTP 정상/부분/전체 실패, OpenAPI 경로·상태 계약 검증. Spotless/PMD/build 통과.
