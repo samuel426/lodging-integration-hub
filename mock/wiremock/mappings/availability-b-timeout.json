@@ -1,0 +1,21 @@
+{
+  "scenarioName": "availability-b",
+  "requiredScenarioState": "timeout",
+  "request": {
+    "method": "GET",
+    "urlPath": "/b/api/search"
+  },
+  "response": {
+    "status": 200,
+    "fixedDelayMilliseconds": 10000,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "resultCode": "0000",
+      "data": {
+        "items": []
+      }
+    }
+  }
+}

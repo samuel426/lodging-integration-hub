@@ -1,0 +1,64 @@
+{
+  "scenarioName": "availability-b",
+  "requiredScenarioState": "Started",
+  "request": {
+    "method": "GET",
+    "urlPath": "/b/api/search",
+    "headers": {
+      "X-Api-Key": {
+        "equalTo": "local-mock-b"
+      }
+    },
+    "queryParameters": {
+      "propertyIds": {
+        "equalTo": "meadow-201"
+      },
+      "checkIn": {
+        "equalTo": "2026-10-10"
+      },
+      "checkOut": {
+        "equalTo": "2026-10-12"
+      },
+      "adults": {
+        "matches": "[1-9][0-9]*"
+      },
+      "children": {
+        "matches": "[0-9]+"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "resultCode": "0000",
+      "data": {
+        "items": [
+          {
+            "propertyId": "meadow-201",
+            "propertyName": "Meadow House",
+            "roomId": "twin",
+            "roomName": "Courtyard Twin",
+            "maxOccupancy": 3,
+            "breakfastIncluded": true,
+            "currency": "KRW",
+            "totalPrice": 236000,
+            "taxIncluded": true,
+            "inventory": [
+              {
+                "date": "2026-10-10",
+                "remainingRooms": 4
+              },
+              {
+                "date": "2026-10-11",
+                "remainingRooms": 1
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
