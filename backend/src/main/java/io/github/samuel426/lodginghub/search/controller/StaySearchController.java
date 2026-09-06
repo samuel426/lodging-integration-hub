@@ -22,7 +22,7 @@ public class StaySearchController {
     this.service = service;
   }
 
-  @GetMapping("/api/v1/stays/search")
+  @GetMapping(value = "/api/v1/stays/search", produces = "application/json")
   @Operation(
       summary = "숙박 상품 통합 검색",
       description = "준비된 공급사 카탈로그 전체를 조회합니다. 일부 실패는 meta.partial과 실패 요약으로 제공합니다.")
