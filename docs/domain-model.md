@@ -140,7 +140,7 @@ inventoryByDate
 price
 ```
 
-검색 서비스는 외부 코드를 catalog mapping으로 확인한 뒤 내부 ID가 포함된 `StayOffer`를 만듭니다. 매핑되지 않은 응답은 고객에게 노출하지 않고 정규화 실패로 기록합니다.
+검색 서비스는 외부 코드를 catalog mapping으로 확인한 뒤 내부 ID가 포함된 `StayOffer`를 만듭니다. 매핑되지 않은 응답은 고객에게 노출하지 않고 내부 mapping 불일치로 구분합니다. 이를 외부 데이터 계약 위반으로 자동 분류하지 않습니다.
 
 ### StayOffer
 
@@ -218,6 +218,6 @@ PriceSummary
 
 - catalog에서 사라진 상품은 물리 삭제하지 않고 비활성화합니다.
 - Supplier가 보내지 않은 세금 및 일자별 가격을 추정하지 않습니다.
-- 매핑되지 않은 availability 응답은 노출하지 않고 정규화 실패로 기록합니다.
+- 매핑되지 않은 availability 응답은 노출하지 않고 내부 mapping 불일치로 기록합니다.
 - 누락되거나 중복된 날짜가 있는 offer는 판매 불가로 처리합니다.
 - 정상적인 빈 catalog와 동기화 미완료는 별도 상태로 구분합니다.

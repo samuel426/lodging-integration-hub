@@ -1,0 +1,37 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/a/v1/hotels",
+    "headers": {
+      "X-Api-Key": {
+        "equalTo": "local-mock-a"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "items": [
+        {
+          "hotelCode": "canal-101",
+          "hotelName": "Canal House",
+          "roomTypes": [
+            {
+              "roomTypeCode": "twin",
+              "roomTypeName": "Garden Twin",
+              "maxOccupancy": 2
+            },
+            {
+              "roomTypeCode": "family",
+              "roomTypeName": "Family Suite",
+              "maxOccupancy": 4
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

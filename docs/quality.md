@@ -18,6 +18,8 @@ JDK 21과 Docker를 준비하고 `backend/`에서 실행합니다. Windows에서
 
 커버리지 수치만으로 정확성을 주장하지 않습니다. 아직 구현하지 않은 기능은 커버리지 분모에도 없으므로 테스트 시나리오 충족 여부를 별도로 추적합니다. [Gradle PMD 문서](https://docs.gradle.org/current/userguide/pmd_plugin.html)
 
+예외적으로 `SupplierCatalogSyncState.succeed`의 `PMD.NullAssignment`만 메서드 범위에서 억제합니다. 성공 후 실패 분류를 `null`로 지우는 것이 승인된 DB 정책이기 때문입니다. 전체 규칙을 비활성화하지 않으며 나머지 생성자 호출·명명·중복 리터럴 지적은 수정했습니다.
+
 ## Secret scan
 
 저장소 루트에서 실행합니다. Docker 마운트 경로는 현재 저장소의 절대 경로를 사용합니다.
@@ -28,6 +30,8 @@ docker run --rm -v "$PWD:/repo:ro" -w /repo zricethezav/gitleaks:v8.27.2 git --r
 ```
 
 실제 비밀값을 검사 결과나 문서에 복사하지 않습니다. 첫 명령은 작업 파일, 두 번째는 Git 이력을 검사합니다.
+
+Gradle 실행 중에는 생성된 cache lock 파일 읽기가 실패할 수 있습니다. 빌드 종료 후 재검사하고, PR에 들어갈 파일은 `git --staged --redact --no-banner`로 별도 검사합니다. 종료 코드 0만 보고 파일 읽기 오류를 무시하지 않습니다.
 
 ## Runtime dependency vulnerabilities
 
@@ -40,6 +44,10 @@ docker run --rm -v "$PWD/backend/build/libs:/scan:ro" -v lodging-hub-trivy-cache
 Trivy의 `fs`는 빌드 전 manifest/lockfile 검사이며 JAR 검사에는 `rootfs`를 사용합니다. 결과에 실제 JAR 대상이 있는지 확인합니다. `Supported files ... not found`와 빈 결과는 취약점 없음이 아닙니다. [Trivy 지원 대상](https://trivy.dev/docs/latest/coverage/language/), [Java 아카이브 검사](https://trivy.dev/docs/latest/coverage/language/java/)
 
 검사 범위는 실행 JAR 안의 runtime 의존성입니다. JDK, PostgreSQL/WireMock 컨테이너 이미지, 테스트 및 빌드 도구의 전체 의존성은 이 명령의 대상이 아닙니다. 사용한 취약점 DB 시점에 알려진 HIGH/CRITICAL을 확인하는 것이며 모든 취약점 부재를 보장하지 않습니다. 캐시 volume에는 공개 검사 DB가 남습니다.
+
+### 2026-09-06 검사 기록
+
+카탈로그 보완 실행 JAR의 HIGH/CRITICAL은 0건입니다. DB mirror 다운로드가 EOF로 중단되고 GHCR도 접근 거부되어 `--skip-db-update --skip-java-db-update`로 보존된 DB를 사용했습니다. metadata의 UpdatedAt은 `2026-09-05T07:05:47Z`, DownloadedAt은 `2026-09-05T09:29:30Z`입니다. 최신 DB 검사로 표시하지 않으며 외부 다운로드 복구 후 갱신 검사를 다시 수행합니다. stage 비밀정보 검사에서는 11,662 bytes를 검사했고 탐지 0건입니다.
 
 ## API contracts
 

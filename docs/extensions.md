@@ -42,7 +42,7 @@
 
 ## 예약 생성과 취소
 
-현재는 검색만 제공하며 예약 API나 예약 Entity는 구현하지 않습니다. 확장 시 검색 결과를 그대로 예약 확정으로 취급하지 않습니다.
+현재 목표 범위는 검색이며 예약 API나 예약 Entity는 구현하지 않습니다. 확장 시 검색 결과를 그대로 예약 확정으로 취급하지 않습니다.
 
 후보 흐름:
 
@@ -56,7 +56,7 @@
 
 ## 운영 규모 확장
 
-- 현재 concurrency는 검색 요청당 상한입니다. 전역 및 Supplier별 bulkhead와 connection-pool pending acquire 상한은 동시 사용자 부하 테스트 후 결정해야 합니다.
+- 계획된 concurrency는 검색 요청당 상한입니다. 전역 및 Supplier별 bulkhead와 connection-pool pending acquire 상한은 동시 사용자 부하 테스트 후 결정해야 합니다.
 - 수천 개 숙소를 모두 검색하면 batch 실행 구간이 누적됩니다. 전체 검색 deadline을 도입할 때는 실행하지 못한 batch까지 부분 실패로 알리는 계약이 필요합니다.
 - 시작 시 동기화는 단일 인스턴스를 전제로 합니다. 다중 인스턴스에서는 Supplier별 lock 또는 단일 scheduler, 충돌 시 재시도와 snapshot version을 검토해야 합니다.
 - 주기적 동기화는 완전한 snapshot만 원자적으로 반영합니다. 외부 pagination이 추가되면 모든 page를 검증하기 전에 누락 상품을 비활성화하면 안 됩니다.

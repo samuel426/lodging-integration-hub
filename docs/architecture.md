@@ -79,6 +79,8 @@ io.github.samuel426.lodginghub
 
 `search`는 `catalog` Entity를 직접 사용하지 않고 조회용 projection을 받습니다. Supplier client도 외부 응답 DTO 대신 내부 `SupplierOffer` 또는 실패 결과를 반환합니다.
 
+현재 Phase 1에서는 `catalog`, `supplier`의 catalog client/DTO/model, `global.config`를 구현했습니다. 단순 구조 변환은 Supplier별 DTO의 `toCatalog()`에 두고 공통 snapshot 검증은 `SupplierCatalog`에 둡니다. availability 가격·재고 mapper와 `search` 패키지는 후속 단계입니다. [현재 catalog 동작](catalog-sync.md)
+
 ## 카탈로그 동기화 흐름
 
 ```mermaid
@@ -143,7 +145,7 @@ sequenceDiagram
 - Controller는 Spring MVC를 사용합니다.
 - Supplier client는 `Mono<SupplierBatchOutcome>`을 반환합니다.
 - 검색 서비스는 Supplier와 배치를 하나의 작업 목록으로 만들고 `flatMap`의 concurrency를 4로 제한합니다.
-- 각 작업은 유효한 상품과 공통 실패를 함께 담을 수 있는 결과 객체로 변환되므로 한 작업의 예외가 전체 reactive chain을 중단하지 않습니다.
+- 알려진 외부 오류는 작업 결과로 수집해 다른 작업을 보존합니다. 예상하지 못한 내부 결함은 C안에 따라 전파하며 전체 reactive chain에서 무조건 흡수하지 않습니다.
 - 개별 상품만 잘못된 경우 해당 상품을 제외하고 `rejectedOfferCount`를 증가시킵니다. 배치 자체를 해석할 수 없거나 호출이 실패한 경우에만 실패 batch로 집계합니다.
 - 모든 작업이 종료된 뒤 MVC 경계에서 한 번만 결과를 기다립니다.
 - 이 대기 구간은 DB 트랜잭션 밖에 둡니다.
@@ -177,6 +179,7 @@ sequenceDiagram
 | Supplier별 catalog upsert | 짧은 쓰기 트랜잭션 |
 | Supplier별 sync 상태 갱신 | catalog upsert와 동일한 트랜잭션 |
 | 활성 외부 코드 조회 | `readOnly = true` |
+| catalog 조회 snapshot | `readOnly = true`, `REPEATABLE_READ`로 여러 SQL의 관측 시점 일치 |
 | Supplier availability HTTP 호출 | 없음 |
 | 검색 결과 정규화 및 병합 | 없음 |
 
@@ -189,7 +192,7 @@ sequenceDiagram
 
 ## Gate 2 검토 항목
 
-- 모든 Supplier에 카탈로그 성공 이력이 없는 경우에만 HTTP 503을 반환합니다.
+- 모든 Supplier에 카탈로그 성공 이력이 없는 경우에만 `CATALOG_NOT_READY`를 반환합니다. availability 이용 불가나 내부 mapping 불일치의 503은 별도 조건입니다.
 - 정상적인 빈 catalog는 성공 이력으로 기록하고 HTTP 200 빈 검색 결과를 허용합니다.
 - 성공한 전체 catalog에서 사라진 매핑은 삭제 대신 비활성화합니다.
 - 오래된 매핑이 있으면 catalog refresh 실패에도 검색을 계속합니다.

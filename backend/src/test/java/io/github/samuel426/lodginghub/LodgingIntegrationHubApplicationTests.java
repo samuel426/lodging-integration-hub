@@ -9,7 +9,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
-@SpringBootTest
+@SpringBootTest(properties = "catalog.sync-on-startup=false")
 class LodgingIntegrationHubApplicationTests {
 
   @Container @ServiceConnection

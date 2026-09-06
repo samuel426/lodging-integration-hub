@@ -8,8 +8,8 @@
 
 | ID | 정책 | 상태 | 승인일 | 구현 / 검증 |
 |---|---|---|---|---|
-| POL-001 | 사라진 외부 상품 mapping의 소프트 삭제와 ID 유지 | Accepted | 2026-09-04 | 미구현 / 테스트 계획만 존재 |
-| POL-002 | 일부 Supplier catalog만 준비된 상태의 검색 허용 | Accepted | 2026-09-04 | 미구현 / 테스트 계획만 존재 |
+| POL-001 | 사라진 외부 상품 mapping의 소프트 삭제와 ID 유지 | Accepted | 2026-09-04 | catalog 구현·DB 테스트 완료 |
+| POL-002 | 일부 Supplier catalog만 준비된 상태의 검색 허용 | Accepted | 2026-09-04 | 준비 상태 구현·검증 완료 / 검색 HTTP 연계 미구현 |
 | POL-003 | 정규화 실패와 정상 빈 결과를 구분하는 검색 응답(C안) | Accepted | 2026-09-04 | 미구현 / S01~S16 검증 계획 |
 
 이전 기술 스택과 가격 기준 등의 합의는 [ADR 목록](adr/README.md)과 [작업 기록](../JOURNAL.md)에 있습니다. 이 대장은 이번 정책 검토부터 승인 단위를 식별자로 추적합니다. 아래 승인 근거는 사용자 의견의 요약이며 발언 전문을 옮긴 것이 아닙니다.
@@ -39,7 +39,8 @@
 
 - 설계: [ADR 0003](adr/0003-persist-stable-catalog-mappings.md), [도메인 모델](domain-model.md)
 - 검증 계획: [Catalog 테스트](testing.md#catalog)
-- 구현 코드와 실행된 테스트: 아직 없음. 구현 후 실제 경로와 검증 결과를 추가합니다.
+- 구현: [CatalogPersistenceService](../backend/src/main/java/io/github/samuel426/lodginghub/catalog/service/CatalogPersistenceService.java), [V1 schema](../backend/src/main/resources/db/migration/V1__create_catalog.sql)
+- 실행된 검증: [CatalogIntegrationTest](../backend/src/test/java/io/github/samuel426/lodginghub/catalog/service/CatalogIntegrationTest.java)의 `missingStayDeactivatesParentAndRoomsAndReappearanceRestoresIds`, `missingRoomDoesNotDeactivateItsStayAndRoomReactivates`, `databaseFailureRollsBackWholeSupplierSnapshotAndSuccessTimestamp` 통과. 실제 JAR 재기동에서도 숙소·객실 UUID 유지 확인.
 
 ## POL-002: 카탈로그 부분 준비
 
@@ -66,7 +67,9 @@
 
 - 설계: [ADR 0003](adr/0003-persist-stable-catalog-mappings.md), [아키텍처](architecture.md), [검색 API](api.md)
 - 검증 계획: [Catalog 테스트](testing.md#catalog)
-- 구현 코드와 실행된 테스트: 아직 없음.
+- 구현: [CatalogQueryService](../backend/src/main/java/io/github/samuel426/lodginghub/catalog/service/CatalogQueryService.java), [CatalogSnapshot](../backend/src/main/java/io/github/samuel426/lodginghub/catalog/dto/CatalogSnapshot.java)
+- 실행된 검증: [CatalogIntegrationTest](../backend/src/test/java/io/github/samuel426/lodginghub/catalog/service/CatalogIntegrationTest.java)의 `distinguishesNeverReadyFromValidatedEmptyCatalog`, `failurePreservesOldSnapshotAndOtherSupplierStillCommits`, `timeoutDoesNotBlockOtherSupplierOrBecomeEmptySuccess` 통과.
+- 남은 범위: 미준비 목록을 검색 HTTP metadata에 연결하고 503/200 응답을 검증하는 작업은 Phase 3입니다.
 
 ## POL-003: 정규화 실패 시 응답
 
