@@ -10,6 +10,7 @@ import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.http.codec.json.JacksonJsonDecoder;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
 @Configuration(proxyBeanMethods = false)
@@ -51,18 +52,25 @@ public class SupplierWebClientConfiguration {
             })
         .filter(
             (request, next) ->
-                next.exchange(
-                    ClientRequest.from(request)
-                        .headers(
-                            headers -> {
-                              headers.set("X-Api-Key", endpoint.apiKey());
-                              // Startup calls have no inbound request; every outbound call is
-                              // identifiable.
-                              if (headers.getFirst("X-Correlation-Id") == null) {
-                                headers.set("X-Correlation-Id", UUID.randomUUID().toString());
-                              }
-                            })
-                        .build()))
+                Mono.deferContextual(
+                    context ->
+                        next.exchange(
+                            ClientRequest.from(request)
+                                .headers(
+                                    headers -> {
+                                      headers.set("X-Api-Key", endpoint.apiKey());
+                                      // Startup calls have no inbound request; every outbound call
+                                      // is
+                                      // identifiable.
+                                      if (headers.getFirst("X-Correlation-Id") == null) {
+                                        headers.set(
+                                            "X-Correlation-Id",
+                                            context.getOrDefault(
+                                                CorrelationIdFilter.TRACE_ID,
+                                                UUID.randomUUID().toString()));
+                                      }
+                                    })
+                                .build())))
         .build();
   }
 }

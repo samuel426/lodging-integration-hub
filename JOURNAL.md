@@ -1,5 +1,16 @@
 # Progress Journal
 
+## 2026-09-07 - 관측·OpenAPI·최종 품질
+
+- 검색의 Correlation ID를 Reactor Context로 전체 공급사에 전달하고 동시 요청 간 혼선을 실제 HTTP로 검증했습니다.
+- 공급사 batch Timer와 검색 결과 Timer, 정상 관측·거절 사유 카운터를 추가했습니다. 취소와 성공을 이중 집계하지 않습니다.
+- 로그 이벤트의 key-value가 기본 콘솔에 누락되는 문제를 발견해 패턴을 보완했습니다. 단위 로그 검증은 Spring 초기화 순서에 의존하지 않도록 이벤트도 직접 검사합니다.
+- OpenAPI nullable 세액은 annotation으로 표현하지만 배열 converter가 null 타입을 지워 해당 필드에 한정한 customizer를 추가했습니다. 실제 생성 명세의 타입과 application/json 응답 계약을 검사합니다.
+- 전체 156건 실패 0, Spotless·PMD·build 통과. 커버리지 931/949 lines(98.1%), 294/347 branches(84.7%). 로컬 smoke의 정상 금액·OpenAPI·부분 timeout·본문 오류·전체 실패를 확인했습니다.
+- Trivy DB 다운로드가 복구되어 2026-09-06 07:00 UTC DB로 실제 JAR HIGH/CRITICAL 0건을 확인했습니다. 이전 캐시 검사 기록과 구분합니다.
+- 공식 Actions 저장소 tag를 조회해 커밋 SHA를 고정한 Quality CI를 추가했습니다. 원격 실행 결과는 최종 검증 기록에 별도로 남깁니다.
+- 선택 기능과 최종 main 병합은 기존 Gate 3/4 사용자 검토 대상으로 남깁니다.
+
 ## 2026-09-06 - 통합 검색
 
 - 어댑터 PR #3을 dev에 반영하고 통합 검색을 연결했습니다. catalog snapshot 트랜잭션 이후 최대 4개 batch를 병렬 조회합니다.

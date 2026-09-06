@@ -18,6 +18,10 @@ spring:
 server:
   shutdown: graceful
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} traceId=%X{traceId:-} %kvp{NONE} - %msg%n"
+
 catalog:
   sync-on-startup: ${CATALOG_SYNC_ON_STARTUP:true}
 

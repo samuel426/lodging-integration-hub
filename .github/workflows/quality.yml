@@ -1,0 +1,43 @@
+name: Quality
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Test, format, static analysis, coverage and build
+        working-directory: backend
+        run: bash gradlew --no-daemon spotlessCheck build
+      - name: Scan Git history for secrets
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo zricethezav/gitleaks:v8.27.2 git --redact --no-banner .
+      - name: Scan runtime JAR with current vulnerability database
+        run: docker run --rm -v "$PWD/backend/build/libs:/scan:ro" aquasec/trivy:0.67.2 rootfs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --no-progress /scan
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            backend/build/reports/
+            backend/build/test-results/
+          retention-days: 7

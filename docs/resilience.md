@@ -1,6 +1,6 @@
 # Supplier Integration Resilience
 
-상태: 승인된 설계 - 단계별 구현 예정
+상태: 필수 장애 격리·검색 정책 구현 완료
 
 ## 기본 원칙
 
@@ -110,16 +110,23 @@ SupplierBatchOutcome
 
 ## 관찰 가능성
 
-권장 metric:
+구현된 metric:
 
 | 이름 | tags | 설명 |
 |---|---|---|
-| `supplier.client.requests` | supplier, operation, outcome | 호출 결과 수 |
-| `supplier.client.duration` | supplier, operation, outcome | 응답 지연 |
-| `supplier.client.timeouts` | supplier, operation | 타임아웃 수 |
-| `supplier.catalog.mappings` | supplier, type | 활성 매핑 수 |
+| `supplier.availability.duration` | supplier, outcome | batch Timer: COUNT는 호출 수, TOTAL_TIME/MAX는 지연. TIMEOUT 태그로 타임아웃 집계 |
 | `supplier.catalog.sync` | supplier, outcome | catalog 동기화 결과 |
-| `supplier.offers.rejected` | supplier, reason | 유효하지 않아 제외된 offer 수 |
+| `supplier.catalog.sync.duration` | supplier, outcome | catalog 동기화 지연 |
+| `supplier.catalog.state.failures` | supplier | 실패 상태 저장 오류 |
+| `search.duration` | outcome | 정상·PARTIAL·원인별 오류 Timer, 정상 빈 결과는 SUCCESS |
+| `search.observations` | kind | valid_offer(업무 필터 전), empty_batch, empty_catalog |
+| `search.rejections` | kind | invalid_data, missing_mapping |
+
+Supplier batch의 PARTIAL_DATA는 개별 거절 존재를 의미하며, 검색 최종 성공 여부는 `search.duration`을 함께 봅니다. 내부 결함으로 취소한 호출은 CANCELLED로 따로 집계합니다. `search.*`는 서비스에 진입한 유효 요청을 측정하며 입력 400은 기본 `http.server.requests`에서 확인합니다.
+
+Correlation ID는 MVC 진입 시 검증하고 Reactor Context로 공급사 호출에 전달합니다. MDC를 비동기 스레드에서 그대로 읽는 방식에 의존하지 않습니다. 로그 패턴에 MDC와 key-value 필드를 출력합니다. 원문 예외 메시지는 출력하지 않고 내부 오류 타입을 기록합니다.
+
+활성 mapping gauge, freshness alert와 주기 refresh는 확장 항목으로 남아 있습니다. catalog 성공 시각은 DB snapshot에 보존되며, 현재 지표만으로 실시간 최신성을 주장하지 않습니다.
 
 외부 상품 코드, URL, 오류 메시지와 같은 high-cardinality 값은 metric tag에 넣지 않습니다.
 

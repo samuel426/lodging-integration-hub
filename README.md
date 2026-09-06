@@ -14,6 +14,8 @@
 - Supplier별 성공 이력과 실패 보존, 조회용 불변 snapshot
 - Testcontainers PostgreSQL 및 WireMock 계약·통합 테스트
 - 실시간 가격·재고 정규화와 통합 검색 API, 요청당 동시성 4 제한
+- Correlation ID의 비동기 전파, 부분 응답·실패·지연 지표와 안전한 로그
+- GitHub Actions 품질 검사 및 로컬 smoke 스크립트
 
 2026-09-04 C안 응답 정책과 구현 시작을 승인받았습니다. 기능별 구현과 검증 결과는 문서에 구분해 기록합니다.
 
@@ -84,7 +86,7 @@ Spring Boot 3.5 계열도 검토했지만 [3.5.16이 마지막 OSS 릴리스라�
 └── README.md
 ```
 
-예정된 애플리케이션 패키지 구조는 [아키텍처 문서](docs/architecture.md)에 설명합니다.
+애플리케이션 패키지 구조는 [아키텍처 문서](docs/architecture.md)에 설명합니다.
 
 ## 로컬 실행
 
@@ -136,6 +138,10 @@ curl "http://localhost:8080/api/v1/stays/search?checkIn=2026-10-10&checkOut=2026
 ```
 
 A 220000 KRW와 B 236000 KRW의 두 상품을 반환합니다. 로컬 fixture 날짜는 위 기간으로 고정되어 있습니다. 오류·지연 제어는 [어댑터 문서](docs/supplier-adapters.md)를 참조합니다.
+
+앱을 실행한 상태에서 저장소 루트의 `./scripts/smoke.ps1`을 실행하면 정상 금액·OpenAPI·부분 타임아웃·본문 오류·전체 실패를 자동 확인하고 mock을 정상 상태로 복구합니다.
+
+운영 확인: `/actuator/metrics/supplier.availability.duration`, `/actuator/metrics/search.duration`. Timer의 COUNT로 호출 수를 확인하고 outcome 태그로 정상·부분·원인별 오류를 구분합니다. 상세 의미는 [견고성 문서](docs/resilience.md)에 있습니다.
 
 ### 종료
 

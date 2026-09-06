@@ -20,6 +20,11 @@ final class SearchAggregation {
   private final Map<FailureKey, Integer> failures = new HashMap<>();
   private final List<StayOfferResponse> offers = new ArrayList<>();
   private int rejected;
+  private int validOffers;
+  private int emptyBatches;
+  private int emptyCatalogs;
+  private int invalidOffers;
+  private int missingMappings;
   private boolean hasObservation;
   private boolean hasMappingFailure;
   private boolean hasInvalidData;
@@ -32,6 +37,9 @@ final class SearchAggregation {
         continue;
       }
       hasObservation |= catalog.stays().isEmpty();
+      if (catalog.stays().isEmpty()) {
+        emptyCatalogs++;
+      }
       for (var stay : catalog.stays()) {
         for (var room : stay.rooms()) {
           mappings.put(
@@ -49,8 +57,12 @@ final class SearchAggregation {
       return;
     }
     rejected += outcome.rejectedOfferCount();
+    invalidOffers += outcome.rejectedOfferCount();
     hasInvalidData |= outcome.rejectedOfferCount() > 0;
     hasObservation |= outcome.isValidatedEmptyBatch();
+    if (outcome.isValidatedEmptyBatch()) {
+      emptyBatches++;
+    }
     for (var offer : outcome.validOffers()) {
       if (offer.supplier() != supplier) {
         throw new IllegalStateException("Adapter supplier mismatch");
@@ -60,10 +72,12 @@ final class SearchAggregation {
               new MappingKey(supplier, offer.externalStayCode(), offer.externalRoomTypeCode()));
       if (mapping == null) {
         rejected++;
+        missingMappings++;
         hasMappingFailure = true;
         continue;
       }
       hasObservation = true;
+      validOffers++;
       if (offer.availableRoomCount() == 0 || condition.guests() > offer.maxOccupancy()) {
         continue;
       }
@@ -125,6 +139,18 @@ final class SearchAggregation {
   }
 
   private record MappingKey(Supplier supplier, String stayCode, String roomCode) {}
+
+  ObservationCounts counts() {
+    return new ObservationCounts(
+        validOffers, emptyBatches, emptyCatalogs, invalidOffers, missingMappings);
+  }
+
+  record ObservationCounts(
+      int validOffers,
+      int emptyBatches,
+      int emptyCatalogs,
+      int invalidOffers,
+      int missingMappings) {}
 
   private record MappedRoom(StayView stay, RoomView room) {}
 

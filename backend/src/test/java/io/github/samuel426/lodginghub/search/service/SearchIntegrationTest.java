@@ -36,6 +36,7 @@ import tools.jackson.databind.json.JsonMapper;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {"suppliers.request-timeout=3s", "suppliers.response-timeout=3s"})
 class SearchIntegrationTest {
+  private static final String TRACE_HEADER = "X-Correlation-Id";
   private static final String QUERY =
       "/api/v1/stays/search?checkIn=2026-10-10&checkOut=2026-10-12&adults=2&children=0";
   private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -67,6 +68,45 @@ class SearchIntegrationTest {
   @BeforeEach
   void reset() throws Exception {
     admin("POST", "/__admin/scenarios/reset", "{}");
+    admin("DELETE", "/__admin/requests", "{}");
+  }
+
+  @Test
+  void concurrentRequestsKeepTheirCorrelationIdsAcrossSupplierCalls() throws Exception {
+    var first =
+        HTTP.sendAsync(
+            HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + QUERY))
+                .header(TRACE_HEADER, "parallel-one")
+                .GET()
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+    var second =
+        HTTP.sendAsync(
+            HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + QUERY))
+                .header(TRACE_HEADER, "parallel-two")
+                .GET()
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+    assertThat(first.get().headers().firstValue(TRACE_HEADER)).contains("parallel-one");
+    assertThat(second.get().headers().firstValue(TRACE_HEADER)).contains("parallel-two");
+    var journal =
+        HTTP.send(
+            HttpRequest.newBuilder(URI.create(mockUrl() + "/__admin/requests")).GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+    var requests = JSON.readTree(journal.body()).path("requests");
+    int one = 0;
+    int two = 0;
+    for (var request : requests) {
+      String trace = request.at("/request/headers/X-Correlation-Id").asString();
+      if (trace.equals("parallel-one")) {
+        one++;
+      }
+      if (trace.equals("parallel-two")) {
+        two++;
+      }
+    }
+    assertThat(one).isEqualTo(2);
+    assertThat(two).isEqualTo(2);
   }
 
   @Test
@@ -117,6 +157,13 @@ class SearchIntegrationTest {
     JsonNode operation = JSON.readTree(response.body()).at("/paths/~1api~1v1~1stays~1search/get");
     assertThat(operation.isMissingNode()).isFalse();
     assertThat(operation.path("parameters").size()).isEqualTo(4);
+    assertThat(operation.at("/parameters/2/schema/type").asString()).isEqualTo("integer");
+    assertThat(operation.at("/parameters/2/schema/minimum").asInt()).isEqualTo(1);
+    assertThat(operation.at("/responses/200/content/application~1json/schema/$ref").asString())
+        .endsWith("/SearchResponse");
+    var price = JSON.readTree(response.body()).at("/components/schemas/PriceSummary/properties");
+    assertThat(price.at("/taxAmount/type").toString()).contains("integer", "null");
+    assertThat(price.at("/nightlyBreakdown/type").toString()).contains("array", "null");
     for (String code : new String[] {"200", "400", "500", "502", "503"}) {
       assertThat(operation.path("responses").has(code)).isTrue();
     }

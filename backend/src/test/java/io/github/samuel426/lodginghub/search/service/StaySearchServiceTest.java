@@ -128,7 +128,7 @@ class StaySearchServiceTest {
     var aOutcome = a;
     var bOutcome = b;
     var service =
-        new StaySearchService(
+        service(
             query,
             List.of(
                 client(
@@ -187,8 +187,7 @@ class StaySearchServiceTest {
                                 : empty();
                           });
                 });
-    var response =
-        new StaySearchService(query, List.of(client(A, fetch), client(B, fetch))).search(CONDITION);
+    var response = service(query, List.of(client(A, fetch), client(B, fetch))).search(CONDITION);
     assertThat(maximum.get()).isEqualTo(4);
     assertThat(calls.get()).isEqualTo(8);
     assertThat(active.get()).isZero();
@@ -203,12 +202,8 @@ class StaySearchServiceTest {
     var query = mock(CatalogQueryService.class);
     when(query.snapshot())
         .thenReturn(new CatalogSnapshot(List.of(catalog(A, true, 101), catalog(B, true, 101))));
-    var first =
-        new StaySearchService(query, List.of(delayed(A, false), delayed(B, true)))
-            .search(CONDITION);
-    var second =
-        new StaySearchService(query, List.of(delayed(A, true), delayed(B, false)))
-            .search(CONDITION);
+    var first = service(query, List.of(delayed(A, false), delayed(B, true))).search(CONDITION);
+    var second = service(query, List.of(delayed(A, true), delayed(B, false))).search(CONDITION);
     assertThat(first).isEqualTo(second);
     assertThat(first.meta().supplierFailures())
         .hasSize(2)
@@ -220,8 +215,7 @@ class StaySearchServiceTest {
     var query = mock(CatalogQueryService.class);
     when(query.snapshot()).thenReturn(new CatalogSnapshot(List.of(catalog(A, true, 1))));
     var service =
-        new StaySearchService(
-            query, List.of(client(A, request -> Mono.just(success(A, 1, 0, 1, ROOM_CODE)))));
+        service(query, List.of(client(A, request -> Mono.just(success(A, 1, 0, 1, ROOM_CODE)))));
     var result =
         service.search(
             new AvailabilityCondition(
@@ -234,15 +228,21 @@ class StaySearchServiceTest {
   void missingClientIsConfigurationFailureAndEmptyPublisherIsInternalDefect() {
     var query = mock(CatalogQueryService.class);
     when(query.snapshot()).thenReturn(new CatalogSnapshot(List.of(catalog(A, true, 1))));
-    assertThatThrownBy(() -> new StaySearchService(query, List.of()).search(CONDITION))
+    assertThatThrownBy(() -> service(query, List.of()).search(CONDITION))
         .isInstanceOfSatisfying(
             SearchException.class,
             e -> assertThat(e.failure()).isEqualTo(SearchFailure.INTEGRATION_CONFIGURATION_ERROR));
     assertThatThrownBy(
-            () ->
-                new StaySearchService(query, List.of(client(A, request -> Mono.empty())))
-                    .search(CONDITION))
+            () -> service(query, List.of(client(A, request -> Mono.empty()))).search(CONDITION))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  private static StaySearchService service(
+      CatalogQueryService query, List<SupplierAvailabilityClient> clients) {
+    return new StaySearchService(
+        query,
+        clients,
+        new SearchObservation(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
   }
 
   private SupplierAvailabilityClient delayed(Supplier supplier, boolean slow) {
