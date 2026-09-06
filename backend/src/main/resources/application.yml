@@ -5,6 +5,9 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/lodging_hub}
     username: ${DB_USERNAME:lodging}
     password: ${DB_PASSWORD:lodging_local}
+    hikari:
+      data-source-properties:
+        logServerErrorDetail: false
   flyway:
     enabled: true
   jpa:

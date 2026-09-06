@@ -4,6 +4,7 @@ import io.github.samuel426.lodginghub.supplier.model.SupplierCallException;
 import io.github.samuel426.lodginghub.supplier.model.SupplierFailureCategory;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutException;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.springframework.core.codec.DecodingException;
@@ -27,26 +28,45 @@ public final class SupplierHttpSupport {
             response ->
                 response
                     .releaseBody()
+                    // The status is authoritative even when discarding its body fails.
+                    .onErrorResume(SupplierHttpSupport::isTransportFailure, ignored -> Mono.empty())
                     .thenReturn(
                         new SupplierCallException(httpCategory(response.statusCode().value()))))
         .bodyToMono(responseType)
         .switchIfEmpty(Mono.error(SupplierCallException.invalidResponse()))
         .timeout(deadline)
-        .onErrorMap(
-            TimeoutException.class,
-            ignored -> new SupplierCallException(SupplierFailureCategory.TIMEOUT))
-        .onErrorMap(
-            WebClientRequestException.class,
-            error ->
-                new SupplierCallException(
-                    isTimeout(error)
-                        ? SupplierFailureCategory.TIMEOUT
-                        : SupplierFailureCategory.CONNECTION_ERROR))
-        .onErrorMap(DecodingException.class, ignored -> SupplierCallException.invalidResponse())
-        .onErrorMap(
-            DataBufferLimitException.class, ignored -> SupplierCallException.invalidResponse())
-        .onErrorMap(
-            WebClientResponseException.class, ignored -> SupplierCallException.invalidResponse());
+        .onErrorMap(SupplierHttpSupport::classify);
+  }
+
+  private static Throwable classify(Throwable error) {
+    if (error instanceof SupplierCallException) {
+      return error;
+    }
+    if (isTimeout(error)) {
+      return new SupplierCallException(SupplierFailureCategory.TIMEOUT);
+    }
+    if (error instanceof DecodingException || error instanceof DataBufferLimitException) {
+      return SupplierCallException.invalidResponse();
+    }
+    if (isTransportFailure(error)) {
+      return new SupplierCallException(SupplierFailureCategory.CONNECTION_ERROR);
+    }
+    if (error instanceof WebClientResponseException) {
+      return SupplierCallException.invalidResponse();
+    }
+    return error;
+  }
+
+  private static boolean isTransportFailure(Throwable error) {
+    if (isTimeout(error) || error instanceof WebClientRequestException) {
+      return true;
+    }
+    for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+      if (cause instanceof IOException) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static SupplierFailureCategory httpCategory(int status) {
