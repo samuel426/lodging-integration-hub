@@ -27,6 +27,8 @@ Supplier A/B의 정적 숙소·객실 정보를 저장합니다. 실시간 요�
 - 빈 숙소 목록과 빈 객실 목록은 명시적으로 전달된 경우 허용합니다.
 - 추가 필드는 호환성을 위해 무시하지만 필수 필드의 누락을 기본값으로 보충하지 않습니다.
 - HTTP 오류, B의 HTTP 200 본문 오류, 빈 본문, 잘못된 JSON, 과대 본문은 실패입니다.
+- JSON 객체 안의 중복 필드도 거부합니다. 마지막 `items` 값이 앞선 값을 덮어써 빈 snapshot으로 반영되지 않습니다.
+- HTTP 오류 헤더 뒤 본문 전송이 끊겨도 확보한 상태 분류를 유지합니다. 성공 응답의 본문 읽기 timeout과 연결 중단은 각각 `TIMEOUT`, `CONNECTION_ERROR`입니다.
 - redirect를 따라가지 않아 다른 호스트로 API key를 전달하지 않습니다.
 
 검증된 정상 snapshot만 전체 목록으로 신뢰합니다. 외부 서버가 일부 항목을 조용히 누락하면서 정상 응답을 반환한 경우까지 탐지할 수는 없습니다. 현재 계약은 전체 목록이며 pagination이나 완전성 토큰이 없다는 한계가 있습니다.
@@ -56,6 +58,7 @@ docker compose exec -T postgres psql -U lodging -d lodging_hub -c "select suppli
 - `supplier.catalog.sync.duration`: HTTP·검증·DB 반영을 포함한 동기화 시간
 - `supplier.catalog.state.failures`: 실패 상태를 저장하는 DB 작업마저 실패한 횟수
 - 로그: Supplier, operation, outcome, durationMs. 외부 응답·키·driver 오류 메시지를 직접 기록하지 않음
+- JDBC `logServerErrorDetail=false`로 Hibernate가 출력하는 DB 실패의 상세 저장값도 제한합니다. DB rollback 테스트에서 원본 fixture 값의 로그 비노출을 함께 검사합니다.
 
 outcome은 `SUCCESS`, 공통 Supplier 실패 분류, `PERSISTENCE_ERROR`, `INTERNAL_ERROR`입니다. 예상하지 못한 코드 결함을 외부 장애나 성공으로 바꾸지 않으며 시작 시 발생하면 기동을 실패시킵니다. DB 장애로 실패 상태를 저장하지 못하면 이전 상태가 남을 수 있어 별도 오류 로그·metric을 확인합니다.
 

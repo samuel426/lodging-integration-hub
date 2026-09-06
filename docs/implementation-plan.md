@@ -40,6 +40,8 @@
 
 상태: 구현 및 로컬 검증 완료. 검색 API는 포함하지 않습니다.
 
+2026-09-06 검토 보완: HTTP 본문 중단의 실패 격리, JSON 필드 중복 거부, JDBC 상세값 비노출을 추가하고 전체 69건·Spotless·PMD·build를 통과했습니다.
+
 - Flyway V1 schema
 - Stay와 RoomType Entity
 - Supplier stay/room mapping Entity

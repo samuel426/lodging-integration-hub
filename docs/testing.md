@@ -116,6 +116,12 @@ JaCoCo production line coverage는 442/460(96.1%), branch coverage는 130/158(82
 
 실행 JAR smoke: health UP, 두 Supplier sync 성공, 숙소 2개·객실 3개 저장. 동일 DB 재시작 뒤 숙소·객실 mapping UUID 유지 확인. 자세한 재현 명령은 [Catalog 운영 문서](catalog-sync.md)를 참고합니다.
 
+## 2026-09-06 Catalog 경계 보완 검증
+
+전체 69건, 실패·오류·skip 0. Spotless, PMD main/test, build 통과. line 452/468(96.6%), branch 149/176(84.7%). 기존 61건에 HTTP 본문 절단·읽기 timeout 경계 6건, 중복 JSON 필드의 DB 보존 2건을 추가했습니다. DB rollback 테스트에는 실제 출력 캡처로 원본값 비노출 검증을 보강했습니다.
+
+`SupplierHttpBoundaryTest`는 실제 로컬 HTTP 소켓으로 선언된 길이보다 짧은 응답을 생성합니다. catalog 통합 suite는 cold JVM/container 비용과 계약 의미 검증을 분리하기 위해 읽기·전체 제한 5초를 사용하며, 짧은 읽기 timeout은 별도 경계 suite에서 150ms로 검증합니다. 운영 기본값은 연결 500ms, 읽기·전체 2초를 유지합니다. Docker 미기동과 첫 요청 timeout으로 실패했던 실행은 성공 결과에 포함하지 않았습니다.
+
 ## 테스트 데이터 원칙
 
 - 외부에서 제공된 예시를 그대로 복사하지 않고 계약 구조만 만족하는 독립 fixture를 만듭니다.
