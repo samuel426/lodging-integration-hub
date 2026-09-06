@@ -67,6 +67,8 @@
 
 브랜치: `feat/supplier-adapters`
 
+상태: 어댑터·정규화·50개 분할과 HTTP 계약 테스트 구현. [어댑터 문서](supplier-adapters.md)에 경계와 mock 사용법을 기록합니다.
+
 - WebClient 공통 설정
 - connect/response timeout
 - API key header 처리

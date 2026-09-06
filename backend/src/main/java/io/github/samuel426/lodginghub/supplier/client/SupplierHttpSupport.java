@@ -5,13 +5,16 @@ import io.github.samuel426.lodginghub.supplier.model.SupplierFailureCategory;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutException;
 import java.io.IOException;
+import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import org.springframework.core.codec.DecodingException;
 import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriBuilder;
 import reactor.core.publisher.Mono;
 
 public final class SupplierHttpSupport {
@@ -19,9 +22,14 @@ public final class SupplierHttpSupport {
 
   public static <T> Mono<T> get(
       WebClient client, String path, Class<T> responseType, Duration deadline) {
+    return get(client, builder -> builder.path(path).build(), responseType, deadline);
+  }
+
+  public static <T> Mono<T> get(
+      WebClient client, Function<UriBuilder, URI> uri, Class<T> responseType, Duration deadline) {
     return client
         .get()
-        .uri(path)
+        .uri(uri)
         .retrieve()
         .onStatus(
             status -> !status.is2xxSuccessful(),

@@ -1,0 +1,18 @@
+{
+  "scenarioName": "availability-a",
+  "requiredScenarioState": "timeout",
+  "request": {
+    "method": "GET",
+    "urlPath": "/a/v1/availability"
+  },
+  "response": {
+    "status": 200,
+    "fixedDelayMilliseconds": 10000,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "items": []
+    }
+  }
+}

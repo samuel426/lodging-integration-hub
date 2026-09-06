@@ -1,0 +1,11 @@
+{
+  "scenarioName": "availability-a",
+  "requiredScenarioState": "error",
+  "request": {
+    "method": "GET",
+    "urlPath": "/a/v1/availability"
+  },
+  "response": {
+    "status": 503
+  }
+}

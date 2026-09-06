@@ -18,7 +18,8 @@ JDK 21과 Docker를 준비하고 `backend/`에서 실행합니다. Windows에서
 
 커버리지 수치만으로 정확성을 주장하지 않습니다. 아직 구현하지 않은 기능은 커버리지 분모에도 없으므로 테스트 시나리오 충족 여부를 별도로 추적합니다. [Gradle PMD 문서](https://docs.gradle.org/current/userguide/pmd_plugin.html)
 
-예외적으로 `SupplierCatalogSyncState.succeed`의 `PMD.NullAssignment`만 메서드 범위에서 억제합니다. 성공 후 실패 분류를 `null`로 지우는 것이 승인된 DB 정책이기 때문입니다. 전체 규칙을 비활성화하지 않으며 나머지 생성자 호출·명명·중복 리터럴 지적은 수정했습니다.
+예외적으로 `SupplierCatalogSyncState.succeed`의 `PMD.NullAssignment`만 메서드 범위에서 억제합니다. 성공 후 실패 분류를 
+ull`로 지우는 것이 승인된 DB 정책이기 때문입니다. 전체 규칙을 비활성화하지 않으며 나머지 생성자 호출·명명·중복 리터럴 지적은 수정했습니다.
 
 ## Secret scan
 
@@ -60,3 +61,7 @@ Trivy가 실행 JAR의 Tomcat 11.0.24에서 CVE-2026-65182, CVE-2026-65905, CVE-
 Apache의 수정 버전 안내에 따라 Spring Boot 4.0.8은 유지하고 `tomcat.version=11.0.25`로 Tomcat 모듈 전체를 일관되게 올렸습니다. 해당 패치 이상을 관리하는 Boot BOM으로 갱신할 때 override 제거를 검토합니다. [Apache Tomcat 11 보안 안내](https://tomcat.apache.org/security-11.html)
 
 패치 후 `spotlessCheck test build`(PMD 포함)가 통과했고 실제 실행 JAR 대상의 재검사에서 HIGH/CRITICAL 0건을 확인했습니다. 기반 단계 테스트는 PostgreSQL context 1건이며 검색 기능 검증이나 높은 기능 커버리지를 의미하지 않습니다.
+
+## 2026-09-06 Availability 빌드
+
+전체 108건과 Spotless/PMD/build 통과. Trivy 실제 JAR HIGH/CRITICAL 0건. DB 갱신 네트워크 제한으로 2026-09-05 07:05 UTC DB를 재사용했으며 최신 DB 검사로 간주하지 않습니다.
