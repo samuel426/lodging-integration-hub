@@ -90,6 +90,8 @@
 
 브랜치: `feat/unified-search`
 
+상태: 검색 Controller, 전체 공급사 배치 동시성 4, 내부 UUID 연결, C안 S01~S16과 OpenAPI 계약 구현.
+
 - 검색 query validation
 - 활성 mapping 조회 projection
 - Supplier와 batch 단위 병렬 orchestration

@@ -1,6 +1,6 @@
 # Search API
 
-상태: 승인된 설계 - 검색 API 미구현
+상태: 구현됨 - Controller/Slice 및 실제 HTTP OpenAPI 계약 검증
 
 2026-09-04: [POL-001~003](policy-decisions.md)이 승인되었습니다. [C안](search-response-policy.md)에 따라 유효한 관측 결과가 있을 때만 200을 반환하며, 외부 데이터 불능은 502로 구분합니다.
 
@@ -11,6 +11,10 @@ GET /api/v1/stays/search?checkIn=2026-10-10&checkOut=2026-10-12&adults=2&childre
 ```
 
 검색 대상은 활성 catalog mapping에 등록된 전체 숙소입니다. 지역, 키워드, 정렬 및 페이징은 지원하지 않습니다.
+
+내부 ID와 표시 이름은 검색 시작 시 확보한 catalog snapshot에서 연결합니다. 재고·가격·조식·수용 인원은 검증된 실시간 offer 값을 사용합니다. mapping 불일치로 제외한 offer도 `rejectedOfferCount`에 포함하며, 유효 관측이 없을 때는 외부 데이터 오류와 분리해 `CATALOG_MAPPING_UNAVAILABLE`로 판정합니다.
+
+응답 `X-Correlation-Id`와 오류의 `traceId`는 같습니다. 입력 헤더는 영문·숫자·밑줄·하이픈 1~64자만 허용하며 없거나 잘못되면 새 UUID를 사용합니다.
 
 ## 요청 파라미터
 
