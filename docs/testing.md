@@ -1,6 +1,18 @@
 # Testing Strategy
 
-상태: 승인된 검증 계획 - 실행 여부는 단계별로 기록
+상태: 필수 흐름 구현·검증 완료 — 최신 전체 테스트 156건 실패 0 (2026-09-07)
+
+실제 검증 연결:
+
+| 요구 | 실행 테스트 |
+|---|---|
+| C안 S01~S16 | `StaySearchServiceTest.approvedScenariosS01ThroughS16` |
+| 50개 분할과 가격·재고 정규화 | `AvailabilityMapperTest` |
+| 전 공급사 동시성 4, 순서 독립성 | `StaySearchServiceTest` |
+| 입력·오류 HTTP 계약 | `StaySearchControllerTest` |
+| 실제 DB·HTTP 검색, OpenAPI, 동시 trace 전파 | `SearchIntegrationTest` |
+| 정상 빈 관측·오류·취소 지표와 안전한 로그 | `SearchObservationTest` |
+| 로컬 실행 JAR | `scripts/smoke.ps1` |
 
 ## 목표
 
@@ -40,8 +52,7 @@
 
 - 일자별 net 금액과 세액을 전체 gross 금액으로 합산합니다.
 - 전체 gross 금액은 그대로 보존합니다.
-- 세액을 알 수 없을 때 
-ull`을 유지합니다.
+- 세액을 알 수 없을 때 `null`을 유지합니다.
 - 일자별 금액이 없을 때 균등 분배하지 않습니다.
 - 음수 금액과 알 수 없는 통화 코드를 거부합니다.
 - 가격 합산의 `long` overflow를 감지하고 잘못된 offer로 처리합니다.

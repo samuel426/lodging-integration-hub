@@ -1,5 +1,15 @@
 # Quality Checks
 
+## 최신 로컬 검증 — 2026-09-07
+
+- 전체 테스트 156건: 실패·오류·skip 0. Spotless, PMD main/test, build 통과.
+- JaCoCo: line 931/949(98.1%), branch 294/347(84.7%).
+- Compose + 실행 JAR smoke: 정상 총액, OpenAPI, 부분 timeout, 본문 오류, 전체 이용 불가 검증.
+- Trivy 갱신 복구: DB UpdatedAt `2026-09-06T07:00:11Z`, DownloadedAt `2026-09-06T12:30:33Z`. 실제 실행 JAR HIGH/CRITICAL 0건.
+- 로컬 문서 링크 76개, JSON fixture 8개와 문서 JSON 예시 8개 검사에서 오류 없음.
+
+이하 기록은 각 구현 단계에서의 검사 이력입니다.
+
 검사 성공 여부와 실제 검사 범위를 함께 기록합니다. 대상 파일이 0개인 검사는 통과로 취급하지 않습니다.
 
 ## Build, formatting, static analysis and coverage
@@ -18,8 +28,7 @@ JDK 21과 Docker를 준비하고 `backend/`에서 실행합니다. Windows에서
 
 커버리지 수치만으로 정확성을 주장하지 않습니다. 아직 구현하지 않은 기능은 커버리지 분모에도 없으므로 테스트 시나리오 충족 여부를 별도로 추적합니다. [Gradle PMD 문서](https://docs.gradle.org/current/userguide/pmd_plugin.html)
 
-예외적으로 `SupplierCatalogSyncState.succeed`의 `PMD.NullAssignment`만 메서드 범위에서 억제합니다. 성공 후 실패 분류를 
-ull`로 지우는 것이 승인된 DB 정책이기 때문입니다. 전체 규칙을 비활성화하지 않으며 나머지 생성자 호출·명명·중복 리터럴 지적은 수정했습니다.
+예외적으로 `SupplierCatalogSyncState.succeed`의 `PMD.NullAssignment`만 메서드 범위에서 억제합니다. 성공 후 실패 분류를 `null`로 지우는 것이 승인된 DB 정책이기 때문입니다. 전체 규칙을 비활성화하지 않으며 나머지 생성자 호출·명명·중복 리터럴 지적은 수정했습니다.
 
 ## Secret scan
 
@@ -52,7 +61,7 @@ Trivy의 `fs`는 빌드 전 manifest/lockfile 검사이며 JAR 검사에는 `roo
 
 ## API contracts
 
-Catalog 단계에서는 Supplier HTTP 계약을 검사합니다. 공개 검색 Controller/OpenAPI가 추가되면 Controller 테스트와 문서 계약 검사를 같은 PR에 포함합니다. 아직 없는 API를 검사 완료로 기록하지 않습니다.
+Supplier HTTP 계약, 검색 Controller/Slice와 실제 서버의 OpenAPI 경로·파라미터·상태 계약을 함께 검사합니다. GitHub Actions의 Quality workflow는 테스트·Spotless·PMD·JaCoCo·build 이후 Git 이력 secret scan과 최신 DB의 실행 JAR 취약점 검사를 수행합니다. 검사 실패를 성공으로 무시하지 않으며 품질 report를 7일간 보존합니다.
 
 ## 2026-09-04 dependency remediation
 

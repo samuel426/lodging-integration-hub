@@ -116,6 +116,8 @@
 
 브랜치: `feat/integration-observability`
 
+상태: trace 전파·지표·구조화 로그·CI·로컬 smoke 구현. 최종 품질 검사와 사용자 검토를 준비합니다.
+
 - traceId filter와 응답 연계
 - Supplier별 호출 횟수, 성공률, 지연, timeout metric
 - catalog sync metric

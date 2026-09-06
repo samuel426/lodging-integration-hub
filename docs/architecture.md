@@ -1,6 +1,6 @@
 # Architecture
 
-상태: 승인된 구현 기준 - 단계별 구현 예정
+상태: 필수 catalog·availability·통합 검색 구현 완료
 
 2026-09-04 승인 범위: [POL-001~003](policy-decisions.md)과 구현 시작을 승인했습니다. 검색 응답에는 [C안](search-response-policy.md)을 적용합니다. 새 제품 정책이나 선택 기능은 별도 승인을 받습니다.
 
@@ -48,10 +48,10 @@ io.github.samuel426.lodginghub
 ├── search
 │   ├── controller
 │   ├── dto
-│   ├── model
 │   └── service
 ├── supplier
 │   ├── client
+│   ├── mapper
 │   ├── model
 │   ├── a
 │   │   ├── client
@@ -63,9 +63,7 @@ io.github.samuel426.lodginghub
 │       └── mapper
 └── global
     ├── config
-    ├── error
-    ├── response
-    └── trace
+    └── response
 ```
 
 ### 책임
@@ -79,7 +77,7 @@ io.github.samuel426.lodginghub
 
 `search`는 `catalog` Entity를 직접 사용하지 않고 조회용 projection을 받습니다. Supplier client도 외부 응답 DTO 대신 내부 `SupplierOffer` 또는 실패 결과를 반환합니다.
 
-현재 Phase 1에서는 `catalog`, `supplier`의 catalog client/DTO/model, `global.config`를 구현했습니다. 단순 구조 변환은 Supplier별 DTO의 `toCatalog()`에 두고 공통 snapshot 검증은 `SupplierCatalog`에 둡니다. availability 가격·재고 mapper와 `search` 패키지는 후속 단계입니다. [현재 catalog 동작](catalog-sync.md)
+catalog 구조 변환은 Supplier별 DTO의 `toCatalog()`와 `SupplierCatalog`에서 수행합니다. availability는 Supplier별 mapper와 공통 `OfferValidation`으로 검증합니다. `StaySearchService`가 snapshot과 배치 조회를 연결하고 `SearchAggregation`이 유효 관측·매핑·업무 필터·응답 정책을 판정합니다. HTTP 오류 처리는 검색 도메인의 Controller advice에 두며 공통 오류 envelope와 Correlation ID filter는 global에 둡니다. [Catalog 동작](catalog-sync.md), [어댑터 경계](supplier-adapters.md)
 
 ## 카탈로그 동기화 흐름
 

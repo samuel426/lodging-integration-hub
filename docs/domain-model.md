@@ -1,6 +1,6 @@
 # Unified Domain Model
 
-상태: 승인된 구현 기준 - 단계별 구현 예정
+상태: 필수 catalog·availability·통합 검색 구현 완료
 
 2026-09-04: [POL-001~003](policy-decisions.md)과 구현 시작이 승인되었습니다. 아래 schema를 구현 기준으로 삼고 상세 조정은 migration과 테스트에 맞춰 기록합니다.
 

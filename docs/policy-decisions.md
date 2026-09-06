@@ -9,8 +9,8 @@
 | ID | 정책 | 상태 | 승인일 | 구현 / 검증 |
 |---|---|---|---|---|
 | POL-001 | 사라진 외부 상품 mapping의 소프트 삭제와 ID 유지 | Accepted | 2026-09-04 | catalog 구현·DB 테스트 완료 |
-| POL-002 | 일부 Supplier catalog만 준비된 상태의 검색 허용 | Accepted | 2026-09-04 | 준비 상태 구현·검증 완료 / 검색 HTTP 연계 미구현 |
-| POL-003 | 정규화 실패와 정상 빈 결과를 구분하는 검색 응답(C안) | Accepted | 2026-09-04 | 미구현 / S01~S16 검증 계획 |
+| POL-002 | 일부 Supplier catalog만 준비된 상태의 검색 허용 | Accepted | 2026-09-04 | 준비 상태 및 검색 HTTP 연계 구현·검증 완료 |
+| POL-003 | 정규화 실패와 정상 빈 결과를 구분하는 검색 응답(C안) | Accepted | 2026-09-04 | S01~S16 및 HTTP 계약 검증 완료 |
 
 이전 기술 스택과 가격 기준 등의 합의는 [ADR 목록](adr/README.md)과 [작업 기록](../JOURNAL.md)에 있습니다. 이 대장은 이번 정책 검토부터 승인 단위를 식별자로 추적합니다. 아래 승인 근거는 사용자 의견의 요약이며 발언 전문을 옮긴 것이 아닙니다.
 
@@ -91,7 +91,7 @@
 - 대안, 추천, 시나리오와 HTTP 근거: [검색 응답 정책 검토](search-response-policy.md)
 - 확정 계약: [ADR 0005](adr/0005-return-partial-search-results.md), [검색 API](api.md), [견고성 문서](resilience.md)
 - 검증 계획: [Failure handling](testing.md#failure-handling)
-- 구현 코드와 실행된 테스트: 아직 없음.
+- 구현: `StaySearchService`, `SearchAggregation`. 실행 검증: `StaySearchServiceTest.approvedScenariosS01ThroughS16`, `StaySearchControllerTest`, `SearchIntegrationTest`.
 
 ## 기록 규칙
 
