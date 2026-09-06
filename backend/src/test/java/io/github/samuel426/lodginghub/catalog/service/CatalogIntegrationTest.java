@@ -26,11 +26,14 @@ import java.util.Map;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,8 +53,16 @@ import org.testcontainers.utility.DockerImageName;
 import tools.jackson.databind.json.JsonMapper;
 
 @Testcontainers
+@ExtendWith(OutputCaptureExtension.class)
 @SpringBootTest(
-    properties = {"catalog.sync-on-startup=false", "suppliers.max-in-memory-bytes=4096"})
+    properties = {
+      "catalog.sync-on-startup=false",
+      "suppliers.max-in-memory-bytes=4096",
+      // Contract semantics should not depend on cold JVM/container initialization speed.
+      // Small read timeout boundaries are exercised separately in SupplierHttpBoundaryTest.
+      "suppliers.request-timeout=5s",
+      "suppliers.response-timeout=5s"
+    })
 class CatalogIntegrationTest {
   private static final String UPDATED_MEADOW = "Updated Meadow";
   private static final String CANAL_HOUSE = "Canal House";
@@ -287,7 +298,8 @@ class CatalogIntegrationTest {
   }
 
   @Test
-  void databaseFailureRollsBackWholeSupplierSnapshotAndSuccessTimestamp() throws Exception {
+  void databaseFailureRollsBackWholeSupplierSnapshotAndSuccessTimestamp(CapturedOutput output)
+      throws Exception {
     normalCatalogs();
     sync.synchronizeAll();
     var original = view(query.snapshot(), Supplier.SUPPLIER_A);
@@ -305,9 +317,27 @@ class CatalogIntegrationTest {
       assertThat(failed.lastFailureCategory()).isEqualTo("PERSISTENCE_ERROR");
       assertThat(view(query.snapshot(), Supplier.SUPPLIER_B).stays().getFirst().name())
           .isEqualTo(UPDATED_MEADOW);
+      assertThat(output.getAll()).doesNotContain("Forbidden Update", "Failing row contains");
     } finally {
       jdbc.execute("alter table stay drop constraint test_reject_name");
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"{\"items\":null,\"items\":[]}", "{\"items\":[],\"items\":[]}"})
+  void ambiguousJsonDoesNotDeactivateExistingMappings(String body) throws Exception {
+    normalCatalogs();
+    sync.synchronizeAll();
+    var original = view(query.snapshot(), Supplier.SUPPLIER_A);
+    clearMappings();
+    stub(A_PATH, 200, body);
+    stub(B_PATH, 200, bCatalog());
+    when(clock.instant()).thenReturn(NOW.plusSeconds(60));
+    sync.synchronizeAll();
+    var failed = view(query.snapshot(), Supplier.SUPPLIER_A);
+    assertThat(failed.stays()).isEqualTo(original.stays());
+    assertThat(failed.lastSucceededAt()).isEqualTo(original.lastSucceededAt());
+    assertThat(failed.lastFailureCategory()).isEqualTo("INVALID_RESPONSE");
   }
 
   @Test
