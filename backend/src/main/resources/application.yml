@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: lodging-integration-hub
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/lodging_hub}
+    username: ${DB_USERNAME:lodging}
+    password: ${DB_PASSWORD:lodging_local}
+    hikari:
+      data-source-properties:
+        logServerErrorDetail: false
+  flyway:
+    enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+server:
+  shutdown: graceful
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} traceId=%X{traceId:-} %kvp{NONE} - %msg%n"
+
+catalog:
+  sync-on-startup: ${CATALOG_SYNC_ON_STARTUP:true}
+
+suppliers:
+  circuit-breaker:
+    sliding-window-size: 10
+    minimum-number-of-calls: 10
+    failure-rate-threshold: 50
+    wait-duration-in-open-state: 10s
+    permitted-calls-in-half-open-state: 2
+    max-wait-duration-in-half-open-state: 5s
+  a:
+    base-url: ${SUPPLIER_A_BASE_URL:http://localhost:9090}
+    api-key: ${SUPPLIER_A_API_KEY:local-mock-a}
+  b:
+    base-url: ${SUPPLIER_B_BASE_URL:http://localhost:9090}
+    api-key: ${SUPPLIER_B_API_KEY:local-mock-b}
+  connect-timeout: 500ms
+  response-timeout: 2s
+  request-timeout: 2s
+  max-in-memory-bytes: 4194304
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

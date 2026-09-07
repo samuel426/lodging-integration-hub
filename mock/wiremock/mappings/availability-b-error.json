@@ -1,0 +1,18 @@
+{
+  "scenarioName": "availability-b",
+  "requiredScenarioState": "error",
+  "request": {
+    "method": "GET",
+    "urlPath": "/b/api/search"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "resultCode": "E503",
+      "data": null
+    }
+  }
+}

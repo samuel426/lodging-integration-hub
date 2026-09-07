@@ -1,0 +1,63 @@
+{
+  "scenarioName": "availability-a",
+  "requiredScenarioState": "Started",
+  "request": {
+    "method": "GET",
+    "urlPath": "/a/v1/availability",
+    "headers": {
+      "X-Api-Key": {
+        "equalTo": "local-mock-a"
+      }
+    },
+    "queryParameters": {
+      "hotelCodes": {
+        "equalTo": "canal-101"
+      },
+      "checkIn": {
+        "equalTo": "2026-10-10"
+      },
+      "checkOut": {
+        "equalTo": "2026-10-12"
+      },
+      "adults": {
+        "matches": "[1-9][0-9]*"
+      },
+      "children": {
+        "matches": "[0-9]+"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "items": [
+        {
+          "hotelCode": "canal-101",
+          "hotelName": "Canal House",
+          "roomTypeCode": "twin",
+          "roomTypeName": "Garden Twin",
+          "maxOccupancy": 2,
+          "breakfastIncluded": false,
+          "currency": "KRW",
+          "dailyRates": [
+            {
+              "date": "2026-10-10",
+              "remainingRooms": 3,
+              "nightlyRate": 97000,
+              "taxAmount": 9700
+            },
+            {
+              "date": "2026-10-11",
+              "remainingRooms": 2,
+              "nightlyRate": 103000,
+              "taxAmount": 10300
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
