@@ -2,7 +2,7 @@
 
 상태: 필수 catalog·availability·통합 검색 구현 완료
 
-2026-09-04: [POL-001~003](policy-decisions.md)과 구현 시작이 승인되었습니다. 아래 schema를 구현 기준으로 삼고 상세 조정은 migration과 테스트에 맞춰 기록합니다.
+정적 상품 식별자와 요청 시점의 판매 조건을 분리합니다. 아래 schema는 Flyway migration과 DB 통합 테스트로 검증하며, 서비스 정책의 판단 근거는 [정책 대장](policy-decisions.md)에 기록합니다.
 
 ## 모델링 기준
 

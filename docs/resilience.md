@@ -1,6 +1,6 @@
 # Supplier Integration Resilience
 
-상태: 필수 장애 격리·검색 정책 구현 완료
+상태: 타임아웃, 부분 성공, 공급사별 Circuit Breaker 구현
 
 ## 기본 원칙
 
@@ -15,7 +15,7 @@
 | batch size | 50 | Supplier bulk 요청 제한 준수 |
 | max concurrency | 4 | 수천 개 숙소에서도 무제한 동시 호출 방지 |
 
-모든 값은 configuration property로 관리하며 테스트에서는 더 짧은 값으로 override합니다. 운영 지표가 쌓이기 전의 초기값이므로 고정된 정답으로 보지 않습니다.
+타임아웃은 configuration property로 관리합니다. batch size 50은 외부 계약의 상한이며, 동시성 4는 검색 서비스의 요청당 상수입니다. 통합 테스트는 환경 변동을 흡수하도록 제한 시간을 늘리고, 타임아웃 경계 테스트는 짧은 값으로 검증합니다. 동시성과 제한 시간은 운영 부하 측정 전의 초기값입니다.
 
 response timeout은 전체 검색 요청의 2초 완료를 보장하지 않습니다. batch 수가 동시성 제한보다 크면 대기열이 생깁니다. 예를 들어 20개 batch를 concurrency 4로 처리하면 최대 5번의 실행 구간이 필요합니다. 전체 검색 deadline과 Supplier별 전역 bulkhead는 초기 구현의 보장 범위 밖입니다.
 
@@ -25,7 +25,7 @@ response timeout은 전체 검색 요청의 2초 완료를 보장하지 않습�
 - Reactor Netty connection timeout과 response timeout을 명시합니다.
 - 최초 요청 전 네트워크 런타임을 warmup합니다. Supplier HTTP 호출이나 응답 cache 생성은 아닙니다.
 - 응답 전체 수신과 역직렬화가 끝나는 publisher에도 2초 deadline을 적용해 조금씩 데이터를 보내는 응답이 계속 연결을 점유하지 못하게 합니다.
-- API key는 header filter에서 주입하고 로그에서 마스킹합니다.
+- API key는 header filter에서 주입하며 로그에 남기지 않습니다.
 - 응답 크기 제한을 설정해 비정상적으로 큰 본문으로부터 메모리를 보호합니다.
 - 외부 HTTP 상태와 본문 result를 adapter 내부에서 공통 실패로 변환합니다.
 
@@ -50,17 +50,18 @@ flowchart TD
 ```text
 SupplierBatchOutcome
 - validOffers
-- validOfferCountBeforeBusinessFiltering
 - isValidatedEmptyBatch
 - rejectedOfferCount
 - failure nullable
 ```
 
+업무 필터 전 유효 offer 수는 검색 집계 단계에서 계산하며 위 결과 객체의 별도 필드가 아닙니다.
+
 호출이나 배치 본문 자체를 해석할 수 없으면 `failure`를 기록합니다. 본문을 해석할 수 있고 일부 offer만 잘못된 경우에는 유효한 offer를 유지하고 `rejectedOfferCount`만 증가시킵니다.
 
 ## 응답 결정표
 
-2026-09-04 승인된 [POL-003 C안](search-response-policy.md)을 적용합니다. 정상 빈 catalog는 외부 batch 수에 넣지 않고 별도 관측으로 집계합니다.
+[유효한 관측 기반 응답 정책](search-response-policy.md)을 적용합니다. 정상 빈 catalog는 외부 batch 수에 넣지 않고 별도 관측으로 집계합니다.
 
 | 유효한 관측 | 누락·오류 | API 결과 |
 |---|---|---|
@@ -98,15 +99,11 @@ SupplierBatchOutcome
 
 ## Circuit Breaker
 
-첫 구현에서는 설계만 남깁니다. 반복 실패 Supplier를 빠르게 차단하는 이점은 있지만, 작은 mock 데이터만으로 threshold를 정하면 설명보다 설정이 앞설 수 있습니다.
+공급사별 availability 호출에 Resilience4j Circuit Breaker를 적용했습니다. 반복되는 연결·시간 초과·서버·호출 한도 오류가 확인되면 신규 호출을 잠시 차단하고, 정상 공급사의 검색 결과를 부분 응답으로 유지합니다. 차단된 batch는 `CIRCUIT_OPEN`으로 표시하며 실제 HTTP 요청은 보내지 않습니다.
 
-추후 Resilience4j를 적용한다면 Supplier와 operation 단위로 분리하고 다음을 지표 기반으로 조정합니다.
+최근 10회 중 최소 10회 관측 후 실패율 50% 이상이면 차단합니다. 10초 후 요청이 들어오면 최대 2회의 복구 확인 호출을 허용하며, 확인이 끝나지 않으면 5초 후 다시 차단합니다. 이 값은 mock에서 차단과 복구를 재현하기 위한 초기값으로 운영 최적값을 주장하지 않습니다.
 
-- sliding window size
-- failure rate threshold
-- slow call threshold
-- open state wait duration
-- half-open permitted calls
+복구된 공급사를 즉시 다시 조회하지 못하는 손실과, 인증·데이터 오류를 차단 근거에서 제외한 이유는 [Circuit Breaker 설계와 검증](circuit-breaker.md)에 정리합니다. catalog 동기화와 자동 재시도는 포함하지 않습니다.
 
 ## 관찰 가능성
 
@@ -114,7 +111,10 @@ SupplierBatchOutcome
 
 | 이름 | tags | 설명 |
 |---|---|---|
-| `supplier.availability.duration` | supplier, outcome | batch Timer: COUNT는 호출 수, TOTAL_TIME/MAX는 지연. TIMEOUT 태그로 타임아웃 집계 |
+| `supplier.availability.duration` | supplier, outcome | batch 시도 Timer: 차단 시도도 COUNT에 포함. TOTAL_TIME/MAX는 처리 지연, TIMEOUT은 시간 초과 |
+| `supplier.circuit.transitions` | supplier, transition | 공급사별 차단 상태 전환 횟수 |
+| `resilience4j.circuitbreaker.state` | name, state, operation | 현재 CLOSED/OPEN/HALF_OPEN 상태 |
+| `resilience4j.circuitbreaker.not.permitted.calls` | name, kind, operation | 호출 허가 거부 횟수 |
 | `supplier.catalog.sync` | supplier, outcome | catalog 동기화 결과 |
 | `supplier.catalog.sync.duration` | supplier, outcome | catalog 동기화 지연 |
 | `supplier.catalog.state.failures` | supplier | 실패 상태 저장 오류 |

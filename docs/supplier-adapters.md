@@ -18,4 +18,4 @@ Compose WireMock 정상 fixture는 `2026-10-10`부터 `2026-10-12`까지 지원�
 
 WireMock admin API의 `PUT /__admin/scenarios/availability-a/state` 또는 `availability-b/state`에 `{"state":"timeout"}`을 보내면 10초 지연, `{"state":"error"}`이면 A HTTP 503 또는 B 본문 E503을 재현합니다. `{"state":"Started"}`로 정상 복구합니다. 이 제어 API는 로컬 mock 용도입니다.
 
-검색 orchestration, 내부 UUID 연결, 업무 필터와 공개 응답 판정은 다음 검색 구현 단위에서 담당합니다.
+검색 orchestration, 내부 UUID 연결, 업무 필터와 공개 응답 판정은 `StaySearchService`와 `SearchAggregation`이 담당합니다. [Circuit Breaker](circuit-breaker.md)는 availability adapter를 호출하기 전에 공급사별 허가를 판정합니다. mock을 정상 상태로 돌려도 이미 OPEN인 회로는 대기와 복구 확인을 거친 뒤 닫힙니다.

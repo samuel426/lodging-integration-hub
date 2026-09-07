@@ -2,7 +2,7 @@
 
 상태: 구현됨 - Controller/Slice 및 실제 HTTP OpenAPI 계약 검증
 
-2026-09-04: [POL-001~003](policy-decisions.md)이 승인되었습니다. [C안](search-response-policy.md)에 따라 유효한 관측 결과가 있을 때만 200을 반환하며, 외부 데이터 불능은 502로 구분합니다.
+[유효한 관측 기반 정책](search-response-policy.md)에 따라 유효한 관측 결과가 있을 때만 200을 반환하며, 외부 데이터 불능은 502로 구분합니다.
 
 ## Endpoint
 
@@ -28,6 +28,8 @@ GET /api/v1/stays/search?checkIn=2026-10-10&checkOut=2026-10-12&adults=2&childre
 과거 날짜를 API 검증에서 거부하지 않습니다. 검색 계약과 장애 시나리오를 재현할 수 있게 하고, 실제 판매 정책은 별도 정책 계층으로 확장합니다.
 
 ## 성공 응답
+
+아래 ID와 가격은 응답 구조를 설명하는 예시입니다. 기본 mock의 실제 정상 결과는 [README](../README.md)의 실행 예시를 기준으로 확인합니다.
 
 ```json
 {
@@ -147,12 +149,7 @@ HTTP/1.1 400 Bad Request
   "error": {
     "code": "INVALID_SEARCH_CONDITION",
     "message": "검색 조건이 올바르지 않습니다.",
-    "fieldErrors": [
-      {
-        "field": "checkOut",
-        "reason": "체크아웃 날짜는 체크인 날짜보다 이후여야 합니다."
-      }
-    ]
+    "fieldErrors": []
   },
   "traceId": "01991c5f2d8278c18bd6dd02a3a8ef34"
 }
@@ -205,8 +202,13 @@ HTTP/1.1 503 Service Unavailable
 | `INVALID_REQUEST` | Supplier가 요청을 거부 |
 | `INVALID_RESPONSE` | 본문 실패, 역직렬화 또는 정규화 실패 |
 | `UPSTREAM_ERROR` | 외부 서버 오류 또는 일시적 장애 |
+| `CIRCUIT_OPEN` | Circuit Breaker가 신규 호출을 거부하여 HTTP 요청을 보내지 않음 |
 
-내부 로그에는 원인 예외와 operation을 남기되 고객 응답에는 안정적인 분류만 제공합니다.
+차단된 batch도 실패 batch 수에 포함합니다. 다른 유효한 관측이 있으면 HTTP 200과 `partial=true`, 유효한 관측 없이 모두 차단되면 HTTP 503 `ALL_SUPPLIERS_UNAVAILABLE`을 반환합니다. OPEN뿐 아니라 HALF_OPEN의 허용 호출 수가 모두 사용된 경우도 `CIRCUIT_OPEN`입니다.
+
+`CIRCUIT_OPEN`은 실패 category enum의 추가입니다. 응답 구조와 HTTP 정책은 유지하지만 enum을 닫힌 목록으로 처리하는 소비자는 새 값을 수용해야 합니다. OpenAPI와 실제 HTTP 계약 테스트에서 이를 검증합니다.
+
+내부 로그에는 안전한 오류 타입과 operation을 남기며, 고객 응답에는 공통 분류만 제공합니다.
 
 ## 계약상 보장
 

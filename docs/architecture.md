@@ -1,8 +1,8 @@
 # Architecture
 
-상태: 필수 catalog·availability·통합 검색 구현 완료
+상태: catalog·availability·통합 검색과 공급사별 Circuit Breaker 구현
 
-2026-09-04 승인 범위: [POL-001~003](policy-decisions.md)과 구현 시작을 승인했습니다. 검색 응답에는 [C안](search-response-policy.md)을 적용합니다. 새 제품 정책이나 선택 기능은 별도 승인을 받습니다.
+검색은 [유효한 관측 기반 응답 정책](search-response-policy.md)을 따릅니다. 반복 장애는 [공급사별 Circuit Breaker](circuit-breaker.md)로 격리합니다.
 
 ## 설계 목표
 
@@ -46,10 +46,13 @@ io.github.samuel426.lodginghub
 │   ├── service
 │   └── dto
 ├── search
+│   ├── config
 │   ├── controller
 │   ├── dto
 │   └── service
 ├── supplier
+│   ├── config
+│   ├── service
 │   ├── client
 │   ├── mapper
 │   ├── model
@@ -137,6 +140,8 @@ sequenceDiagram
     Search-->>API: unified result
     API-->>User: response envelope
 ```
+
+각 availability batch는 `SupplierAvailabilityGuard`에서 호출 허가를 얻은 뒤 adapter를 구독합니다. 상태는 한 애플리케이션 인스턴스 안에서 공급사별로 공유합니다. 허가가 거부되면 외부 HTTP 요청 없이 `CIRCUIT_OPEN` 결과를 집계하며, 이미 실행 중인 batch는 취소하지 않습니다. catalog 동기화에는 적용하지 않습니다.
 
 ### 병렬성 모델
 

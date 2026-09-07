@@ -2,11 +2,14 @@
 
 ## 최신 로컬 검증 — 2026-09-07
 
-- 전체 테스트 156건: 실패·오류·skip 0. Spotless, PMD main/test, build 통과.
-- JaCoCo: line 931/949(98.1%), branch 294/347(84.7%).
+- Circuit Breaker 포함 전체 테스트 171건: 실패·오류·skip 0. Spotless, PMD main/test, build 통과.
+- JaCoCo: line 1004/1022(98.2%), branch 333/395(84.3%). 추가된 설정 검증 분기도 분모에 포함합니다.
 - Compose + 실행 JAR smoke: 정상 총액, OpenAPI, 부분 timeout, 본문 오류, 전체 이용 불가 검증.
-- Trivy 갱신 복구: DB UpdatedAt `2026-09-06T07:00:11Z`, DownloadedAt `2026-09-06T12:30:33Z`. 실제 실행 JAR HIGH/CRITICAL 0건.
-- 로컬 문서 링크 76개, JSON fixture 8개와 문서 JSON 예시 8개 검사에서 오류 없음.
+- Circuit Breaker smoke: B 반복 장애 차단 중 A 상품 보존, 대기 후 복구 확인과 정상 검색 복원. 상태 지표와 CLOSED → OPEN → HALF_OPEN → CLOSED 전환 카운터 확인.
+- Resilience4j 2.4.0을 포함한 실제 실행 JAR HIGH/CRITICAL 0건. 일반 취약점 DB UpdatedAt `2026-09-06T07:00:11Z`, DownloadedAt `2026-09-06T12:30:33Z`; Java DB는 이번 검사에서 다운로드했습니다.
+- 로컬 문서 링크 99개, JSON fixture 8개와 문서 JSON 예시 8개 검사에서 오류 없음. PR 변경 대상 staged Gitleaks 69,341 bytes 검사에서 탐지 0건.
+
+필수 기능 단계의 156건·line 931/949·branch 294/347은 이전 기준선입니다. 현재 수치와 혼동하지 않습니다. 해당 단계의 [Quality CI](https://github.com/samuel426/lodging-integration-hub/actions/runs/34064133294)도 통과했습니다. 현재 변경의 원격 검사 결과는 기능 PR에서 확인합니다.
 
 이하 기록은 각 구현 단계에서의 검사 이력입니다.
 
