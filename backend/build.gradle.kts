@@ -25,6 +25,9 @@ repositories {
 }
 
 dependencies {
+    implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.4.0")
+    implementation("io.github.resilience4j:resilience4j-reactor:2.4.0")
+    implementation("io.github.resilience4j:resilience4j-micrometer:2.4.0")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-flyway")

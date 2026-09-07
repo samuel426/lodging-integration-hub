@@ -1,6 +1,6 @@
 # Testing Strategy
 
-상태: 필수 흐름 구현·검증 완료 — 최신 전체 테스트 156건 실패 0 (2026-09-07)
+상태: 필수 흐름 구현·검증 완료 — 최신 전체 테스트 171건 실패 0 (2026-09-07)
 
 실제 검증 연결:
 
@@ -12,7 +12,9 @@
 | 입력·오류 HTTP 계약 | `StaySearchControllerTest` |
 | 실제 DB·HTTP 검색, OpenAPI, 동시 trace 전파 | `SearchIntegrationTest` |
 | 정상 빈 관측·오류·취소 지표와 안전한 로그 | `SearchObservationTest` |
-| 로컬 실행 JAR | `scripts/smoke.ps1` |
+| 차단·공급사 격리·복구 확인·취소 시 허가 반환 | `SupplierCircuitBreakerTest` |
+| 실제 HTTP 미호출·자동 복구·전체 차단 503·새 enum | `SearchIntegrationTest`의 Circuit Breaker 시나리오 |
+| 로컬 실행 JAR | `scripts/smoke.ps1`, `scripts/circuit-smoke.ps1` |
 
 ## 목표
 
@@ -28,7 +30,7 @@
 | Unit | 가격 합산, 재고 최솟값, 날짜 검증, batch 분할 | JUnit 6 (Jupiter), AssertJ |
 | Controller/Slice | query validation, 응답 envelope, 오류 매핑 | MockMvc |
 | Repository Integration | unique constraint, upsert, 활성/비활성 전환 | Testcontainers PostgreSQL |
-| Supplier Contract | HTTP 상태, 본문 실패, DTO 변환 | WireMock |
+| Supplier Contract | HTTP 상태, 본문 실패, DTO 변환 | WireMock, JDK HTTP Server |
 | Application Integration | catalog sync부터 통합 검색까지 | SpringBootTest, PostgreSQL, WireMock |
 | Smoke | Compose 환경에서 health와 검색 API | script 또는 수동 명령 |
 

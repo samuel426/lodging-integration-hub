@@ -26,6 +26,13 @@ catalog:
   sync-on-startup: ${CATALOG_SYNC_ON_STARTUP:true}
 
 suppliers:
+  circuit-breaker:
+    sliding-window-size: 10
+    minimum-number-of-calls: 10
+    failure-rate-threshold: 50
+    wait-duration-in-open-state: 10s
+    permitted-calls-in-half-open-state: 2
+    max-wait-duration-in-half-open-state: 5s
   a:
     base-url: ${SUPPLIER_A_BASE_URL:http://localhost:9090}
     api-key: ${SUPPLIER_A_API_KEY:local-mock-a}

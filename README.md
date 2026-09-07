@@ -1,232 +1,129 @@
 # Lodging Integration Hub
 
-여러 숙박 상품 공급사의 카탈로그, 요금, 재고를 일관된 내부 모델로 통합하는 백엔드 플랫폼입니다.
+서로 다른 숙박 공급사의 상품을 하나의 검색 API로 조회하는 백엔드입니다. 가격과 재고를 같은 의미로 해석하고, 일부 공급사를 조회하지 못했을 때 그 사실을 결과와 함께 전달하는 것을 목표로 합니다.
 
-공급사별 계약 차이는 어댑터 내부에 격리하고, 검색 사용자는 공급사와 무관한 동일한 응답 계약을 사용합니다. 외부 연동은 실패할 수 있다는 전제에서 병렬 조회, 타임아웃, 부분 성공을 핵심 품질 속성으로 다룹니다.
+## 제공하는 기능
 
-## 현재 상태
+- 공급사 A/B 카탈로그 동기화, 숙소·객실의 안정적인 내부 UUID
+- 전체 숙박 기간의 세금 포함 금액과 연박 가능 재고 정규화
+- 날짜·인원 검증, 50개 단위 배치, 검색 요청당 최대 4개 병렬 호출
+- 정상 결과를 보존하는 부분 성공과 원인별 실패 응답
+- 공급사별 Circuit Breaker, 추적 ID, 호출·검색 지표와 안전한 로그
+- PostgreSQL·WireMock 통합 테스트, OpenAPI와 GitHub Actions 품질 검사
 
-- Spring Boot 실행 기반 구성
-- PostgreSQL 및 Flyway 구성
-- WireMock 기반 Supplier mock 실행 환경 구성
-- Supplier A/B catalog HTTP 어댑터와 시작 시 동기화
-- 내부 숙소·객실 ID mapping, 소프트 삭제와 재활성화
-- Supplier별 성공 이력과 실패 보존, 조회용 불변 snapshot
-- Testcontainers PostgreSQL 및 WireMock 계약·통합 테스트
-- 실시간 가격·재고 정규화와 통합 검색 API, 요청당 동시성 4 제한
-- Correlation ID의 비동기 전파, 부분 응답·실패·지연 지표와 안전한 로그
-- GitHub Actions 품질 검사 및 로컬 smoke 스크립트
+실제 외부 서비스 대신 독립적으로 작성한 WireMock fixture로 연동을 재현합니다. 인증·결제·예약·프론트엔드는 구현 범위에 포함하지 않습니다. 제출 검토용 구현은 `dev`를 기준으로 확인하며, 최종 검토 후 `main`에 반영합니다.
 
-2026-09-04 C안 응답 정책과 구현 시작을 승인받았습니다. 기능별 구현과 검증 결과는 문서에 구분해 기록합니다.
+## 빠른 실행
 
-Flyway V1이 catalog 테이블을 생성하고 시작 시 local mock의 정적 상품을 동기화합니다. Swagger에서 `GET /api/v1/stays/search`를 실행할 수 있습니다. catalog 준비 상태와 애플리케이션 health는 서로 다른 지표입니다.
-
-## 목표
-
-- 외부 숙소 및 객실 타입 코드에 안정적인 내부 식별자를 부여합니다.
-- 공급사별로 다른 요금과 재고 표현을 공통 상품 모델로 정규화합니다.
-- 다수 공급사와 다수 배치를 제한된 동시성으로 병렬 조회합니다.
-- 일부 공급사가 실패해도 성공한 상품을 반환하고 실패 사실을 명시합니다.
-- 신규 공급사를 추가할 때 기존 검색 흐름의 변경을 최소화합니다.
-
-## 구현 범위
-
-### 포함
-
-- 공급사 카탈로그 동기화
-- 숙소 및 객실 타입 식별자 매핑 저장
-- Supplier A/B WebClient 어댑터
-- 날짜와 인원 기반 통합 검색 API
-- 총 결제 금액과 연박 재고 정규화
-- 연결 및 응답 타임아웃
-- 부분 성공과 전체 실패 처리
-- 정상, 오류, 무응답을 재현하는 mock
-- 단위, Controller, 계약, 통합 테스트
-- OpenAPI와 운영 지표
-
-### 제외
-
-- 인증과 인가
-- 결제
-- 관리자 UI
-- 프론트엔드
-- 지역 및 키워드 검색
-- 페이징과 비즈니스 정렬
-- 실제 외부 서비스 호출
-- 공급사 간 동일 숙소 자동 병합
-- 예약 생성과 취소
-
-제외한 기능의 확장 방향은 설계 문서에 기록합니다.
-
-## 기술 스택
-
-| 영역 | 선택 |
-|---|---|
-| Language | Java 21 |
-| Framework | Spring Boot 4.0.8 |
-| Web | Spring MVC, Spring WebClient |
-| Persistence | Spring Data JPA, PostgreSQL 17, Flyway |
-| API documentation | SpringDoc OpenAPI |
-| Test | JUnit 6 (Jupiter), AssertJ, Testcontainers, WireMock |
-| Quality | Spotless, PMD, JaCoCo, Gitleaks, Trivy |
-| Local environment | Docker Compose |
-
-Spring Boot 3.5 계열도 검토했지만 [3.5.16이 마지막 OSS 릴리스라는 공식 안내](https://spring.io/blog/2026/06/25/spring-boot-3-5-16-available-now)를 확인해 새 프로젝트의 기반으로 선택하지 않았습니다. 최신 기능 도입보다 지원 중인 안정적인 4.0 패치 계열을 사용하는 것을 우선했습니다.
-
-## 저장소 구조
-
-```text
-.
-├── backend/              Spring Boot 애플리케이션
-├── docs/                 설계, API, 테스트 및 의사결정 기록
-├── mock/wiremock/        로컬 Supplier mock 정의
-├── compose.yaml          PostgreSQL 및 WireMock 실행 환경
-├── AGENTS.md             저장소 작업 규칙
-├── JOURNAL.md            진행 과정과 판단 기록
-└── README.md
-```
-
-애플리케이션 패키지 구조는 [아키텍처 문서](docs/architecture.md)에 설명합니다.
-
-## 로컬 실행
-
-### 사전 요구사항
-
-- JDK 21
-- Docker Desktop 또는 Docker Engine과 Compose
-
-### 인프라 실행
+JDK 21, Docker Engine/Desktop과 Compose가 필요합니다.
 
 ```bash
+git clone https://github.com/samuel426/lodging-integration-hub.git
+cd lodging-integration-hub
+git switch dev
 docker compose up -d
-```
-
-기본 포트:
-
-| 서비스 | 포트 |
-|---|---:|
-| PostgreSQL | `5432` |
-| WireMock | `9090` |
-| Application | `8080` |
-
-### 애플리케이션 실행
-
-macOS/Linux:
-
-```bash
 cd backend
 ./gradlew bootRun
 ```
 
-Windows:
+Windows에서는 마지막 명령을 `.\gradlew.bat bootRun`으로 실행합니다. 시작 시 공급사별 카탈로그를 동기화합니다.
 
-```powershell
-cd backend
-.\gradlew.bat bootRun
-```
+| 확인 대상 | 주소 |
+|---|---|
+| Swagger | http://localhost:8080/swagger-ui.html |
+| OpenAPI JSON | http://localhost:8080/v3/api-docs |
+| Health | http://localhost:8080/actuator/health |
+| 로컬 mock 관리 | http://localhost:9090/__admin/mappings |
 
-기동 후 확인할 수 있는 주소:
-
-- Health: `http://localhost:8080/actuator/health`
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- WireMock mappings: `http://localhost:9090/__admin/mappings`
-
-정상 mock 검색:
+다른 터미널에서 검색합니다.
 
 ```bash
 curl "http://localhost:8080/api/v1/stays/search?checkIn=2026-10-10&checkOut=2026-10-12&adults=2&children=0"
 ```
 
-A 220000 KRW와 B 236000 KRW의 두 상품을 반환합니다. 로컬 fixture 날짜는 위 기간으로 고정되어 있습니다. 오류·지연 제어는 [어댑터 문서](docs/supplier-adapters.md)를 참조합니다.
+정상 fixture는 A **220000 KRW**, B **236000 KRW**의 두 상품과 `partial=false`를 반환합니다. 예시 날짜는 fixture에 고정돼 있습니다. UUID는 최초 동기화에서 생성되고 같은 DB를 사용하는 동안 유지됩니다.
 
-앱을 실행한 상태에서 저장소 루트의 `./scripts/smoke.ps1`을 실행하면 정상 금액·OpenAPI·부분 타임아웃·본문 오류·전체 실패를 자동 확인하고 mock을 정상 상태로 복구합니다.
+Windows PowerShell 또는 PowerShell 7에서 저장소 루트의 `./scripts/smoke.ps1`을 실행하면 정상 금액·OpenAPI·부분 timeout·본문 오류·전체 실패를 확인하고 mock을 정상 상태로 복구합니다. 차단·복구 재현은 [Circuit Breaker 운영 안내](docs/circuit-breaker.md)를 따릅니다.
 
-운영 확인: `/actuator/metrics/supplier.availability.duration`, `/actuator/metrics/search.duration`. Timer의 COUNT로 호출 수를 확인하고 outcome 태그로 정상·부분·원인별 오류를 구분합니다. 상세 의미는 [견고성 문서](docs/resilience.md)에 있습니다.
+종료할 때는 `bootRun` 터미널에서 **Ctrl+C**로 앱을 먼저 종료하고, 저장소 루트에서 `docker compose down`으로 인프라를 종료합니다. DB volume은 보존됩니다.
 
-### 종료
+## 요구사항을 해석한 기준
 
-```bash
-docker compose down
-```
+가격의 구성이나 외부 오류 표현이 달라도 검색 결과의 의미는 같아야 합니다. 다음은 공급사 계약과 검색 조건을 충족하기 위한 처리입니다.
 
-DB 데이터를 포함한 volume까지 삭제하려면 개발 데이터가 필요하지 않은지 확인한 뒤 `docker compose down -v`를 사용합니다.
+| 처리 | 확인하는 의미 |
+|---|---|
+| A 일별 순액+세액 합산, B 전체 gross 보존 | 요청한 숙박 기간 전체의 세금 포함 금액 |
+| 체크인 포함·체크아웃 제외, 숙박일별 재고 최솟값 | 모든 숙박일에 이용 가능한 객실 수 |
+| 품절·수용 인원 미달 상품 제외 | 검색 조건을 만족하는 상품 |
+| 공급사 요청을 최대 50개씩 분할 | 외부 bulk 조회 제한 준수 |
+| 외부 코드와 내부 UUID 매핑 | 같은 상품의 식별자를 반복 조회에서도 유지 |
 
-## 환경 변수
+검색 재고는 예약 확정이 아닙니다. 세금 포함 총액도 제공된 공급사 계약 범위의 금액이며, 구현하지 않은 예약·결제 단계의 보장으로 확대하지 않습니다.
 
-| 이름 | 설명 | 로컬 기본값 |
+## 설계 판단과 감수한 한계
+
+구현 방식은 검색 결과의 정확성, 조회 범위의 투명성, 응답 가용성을 기준으로 선택했습니다.
+
+| 판단한 문제 | 선택과 이유 | 감수한 한계 |
 |---|---|---|
-| `DB_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://localhost:5432/lodging_hub` |
-| `DB_USERNAME` | DB 사용자 | `lodging` |
-| `DB_PASSWORD` | DB 비밀번호 | 로컬 Compose 전용 값 |
-| `SUPPLIER_A_BASE_URL` | Supplier A HTTP base URL | `http://localhost:9090` |
-| `SUPPLIER_B_BASE_URL` | Supplier B HTTP base URL | `http://localhost:9090` |
-| `SUPPLIER_A_API_KEY` | Supplier A 인증 헤더 값 | 로컬 mock 전용 값 |
-| `SUPPLIER_B_API_KEY` | Supplier B 인증 헤더 값 | 로컬 mock 전용 값 |
-| `CATALOG_SYNC_ON_STARTUP` | 시작 시 1회 동기화 | `true` |
+| 일부 공급사의 장애 때문에 다른 정상 상품까지 보여주지 못할 수 있다. | 확인한 결과는 제공하고 누락된 범위를 metadata로 알린다. 완전한 결과를 기다리는 것보다 현재 확인할 수 있는 정보를 전달하는 데 우선순위를 뒀다. | 결과의 완전성을 보장하지 않는다. 소비자는 부분 조회 사실을 사용자에게 설명해야 한다. |
+| 조회 실패가 정상적인 상품 없음으로 보이면 이용자가 잘못 판단할 수 있다. | 검증된 상품이나 명시적 빈 결과가 있을 때만 검색 성공으로 판단한다. 정상 무결과와 정보 불능을 구분한다. | 결과 건수 외에 관측·거절·실패를 따로 집계해야 하며 소비자의 오류 처리도 필요하다. |
+| 제공되지 않은 세부 가격을 계산해 채우면 추정값이 실제 가격처럼 보인다. | 세액·일별 가격은 공급사가 제공한 경우에만 보존한다. 상세함보다 확인 가능한 정보의 정확성을 우선한다. | 일부 상품은 가격 상세 비교가 불가능하고 필드가 null일 수 있다. |
+| 이름이 비슷한 상품을 합치면 서로 다른 객실·조식 조건을 같은 것으로 취급할 수 있다. | 동일 상품이라는 근거가 부족하므로 공급사별 상품을 별도로 유지한다. | 같은 숙소가 중복 노출될 수 있다. 별도의 매칭 근거와 오병합 복구 정책이 필요하다. |
+| 정적 목록 조회의 지연이나 실패가 매 검색에 영향을 줄 수 있다. | 정적 정보는 미리 저장하고 가격·재고는 검색 시 조회한다. 초기 동기화 범위는 시작 시점으로 한정했다. | 실행 중 정적 정보 변경은 다음 동기화까지 반영되지 않는다. |
+| 일시적으로 사라진 상품이 돌아왔을 때 다른 상품처럼 식별될 수 있다. | 매핑을 삭제하지 않고 비활성화하며 재등장 시 같은 UUID를 사용한다. | 비활성 데이터가 남으므로 장기 운영 시 보존·정리 정책이 필요하다. |
+| 지속적인 외부 장애를 매 요청마다 다시 기다리는 비용이 누적된다. | 공급사별 Circuit Breaker로 호출을 잠시 멈추고 제한된 조회로 복구를 확인한다. | 실제 복구 직후에도 확인 전까지 일부 상품이 누락될 수 있다. 차단 설정을 운영 지표로 조정해야 한다. |
 
-실제 비밀값은 커밋하지 않습니다. 변수 이름은 [.env.example](.env.example)에서 확인할 수 있습니다.
+이 판단은 현재 계약과 재현 테스트에 근거합니다. 실제 고객 조사나 운영 부하 측정으로 효과를 입증했다는 의미는 아닙니다. 기술적 대안과 결정 이력은 [ADR](docs/adr/README.md)에 분리했습니다.
 
-Spring Boot를 `bootRun`으로 실행할 때 `.env`가 자동으로 로드되지는 않습니다. 값을 바꾸려면 실행 shell 또는 IDE의 환경 변수로 전달합니다. Compose의 고정 사용자와 비밀번호는 폐기 가능한 로컬 개발용으로만 사용합니다. 이 구성은 인증이 없는 로컬 실행용이며 운영 배포 설정이 아닙니다.
+## 검색 결과를 읽는 방법
 
-외부 호출은 연결 500ms, 응답 읽기 2s, 전체 본문 수신·역직렬화 deadline 2s, 본문 메모리 상한 4MiB를 사용합니다. `suppliers.*` Spring 설정으로 조정할 수 있습니다. 검색은 모든 공급사의 배치를 합쳐 요청당 최대 4개를 병렬 호출합니다. [Catalog 운영 안내](docs/catalog-sync.md)에 재실행·실패 확인 절차를 정리합니다.
+- **200 + partial=false:** 모든 대상 범위의 조회가 정상이며 거절된 상품이 없습니다. 정상 빈 결과도 포함합니다.
+- **200 + partial=true:** 유효한 관측은 있지만 일부 호출 실패, 상품 거절 또는 미준비 카탈로그가 있습니다.
+- **400:** 날짜·인원 등 고객 요청 검증 실패입니다.
+- **500/502/503:** 유효한 결과를 확보하지 못한 원인을 구분합니다. 내부 결함은 다른 성공 결과가 있어도 500으로 처리합니다.
 
-## 품질 검사
+Circuit Breaker가 호출을 허용하지 않으면 `supplierFailures.category=CIRCUIT_OPEN`으로 알립니다. 다른 유효한 관측이 있으면 부분 200, 유효한 관측 없이 모든 공급사가 차단됐으면 503입니다. 상세 필드와 오류 우선순위는 [API 계약](docs/api.md)에 있습니다.
 
-macOS/Linux:
+## 기술 구성과 경계
+
+| 영역 | 사용 기술 |
+|---|---|
+| 애플리케이션 | Java 21, Spring Boot 4.0.8, Gradle Kotlin DSL |
+| 요청·외부 I/O | Spring MVC, WebClient, Resilience4j 2.4.0 |
+| 저장소 | PostgreSQL 17, JPA, Flyway |
+| 검증 | JUnit 6, MockMvc, Testcontainers, WireMock |
+| 문서·품질 | SpringDoc, Spotless, PMD, JaCoCo, Gitleaks, Trivy |
+
+MVC·JPA를 유지하면서 외부 I/O만 병렬화했습니다. 카탈로그 스냅샷을 확보한 뒤 DB 트랜잭션을 종료하고 공급사를 호출합니다. 외부 DTO는 어댑터에서 공통 결과로 변환하며 Entity를 검색 응답으로 노출하지 않습니다. [아키텍처](docs/architecture.md)
+
+## 검증
+
+`backend/`에서 실행합니다. Windows에서는 `./gradlew` 대신 `.\gradlew.bat`를 사용합니다.
 
 ```bash
-cd backend
 ./gradlew spotlessCheck test build
 ```
 
-Windows:
+Docker가 필요합니다. 테스트는 별도 PostgreSQL·WireMock 컨테이너를 사용하며 로컬 Compose DB를 초기화하지 않습니다.
 
-```powershell
-cd backend
-.\gradlew.bat spotlessCheck test build
-```
+가격·재고·배치 경계, 외부 HTTP·본문 오류, 정상 빈 결과와 오류 무결과, DB 무결성, 병렬 호출, 차단·복구, OpenAPI와 추적 ID를 검증합니다. 최신 테스트 수·커버리지·CI 근거는 [품질 기록](docs/quality.md), 요구별 테스트 연결은 [검증 문서](docs/testing.md)에 모읍니다.
 
-테스트는 로컬에 설치된 DB 대신 Testcontainers PostgreSQL을 사용합니다. Docker가 실행 중이어야 합니다.
+## 실행 설정과 운영 한계
 
-PMD는 `build`에 포함됩니다. 비밀정보 및 실행 JAR 의존성 검사 명령과 적용 범위는 [품질 검사 문서](docs/quality.md)를 참고합니다.
+기본 포트는 앱 8080, PostgreSQL 5432, mock 9090입니다. 환경변수는 [.env.example](.env.example), HTTP·차단 설정은 [application.yml](backend/src/main/resources/application.yml)을 참고합니다. `bootRun`은 `.env`를 자동으로 읽지 않으므로 변경값은 shell 또는 IDE 환경변수로 전달합니다.
 
-## 설계 문서
+연결 제한은 500ms, 배치 응답 읽기와 전체 본문 처리 제한은 2초입니다. **검색 전체가 2초 안에 끝난다는 보장은 아닙니다.** 배치가 많으면 실행 구간이 누적되며, 동시성 4는 검색 요청당 상한입니다.
 
-- [정책 승인 및 변경 대장](docs/policy-decisions.md)
-- [검색 응답 정책 대안 검토](docs/search-response-policy.md)
-- [아키텍처](docs/architecture.md)
-- [통합 도메인 모델](docs/domain-model.md)
-- [검색 API](docs/api.md)
-- [외부 연동 견고성](docs/resilience.md)
-- [테스트 전략](docs/testing.md)
-- [Catalog 동기화와 운영](docs/catalog-sync.md)
-- [구현 계획](docs/implementation-plan.md)
-- [확장 설계와 현재 한계](docs/extensions.md)
-- [AI 활용 기록](docs/ai-usage.md)
-- [Architecture Decision Records](docs/adr/README.md)
+Circuit Breaker는 인스턴스 안에서 공급사별 상태를 공유합니다. 카탈로그 동기화, 자동 재시도, 캐시, 전역 호출량 제한에는 적용하지 않습니다. 기본 임계값은 mock 검증용 초기값이며 운영 SLA에서 도출한 값이 아닙니다.
 
-## 핵심 설계 결정 요약
+이 구성은 로컬 실행용입니다. 운영 인증·비밀정보 관리, 주기 동기화, 전체 검색 deadline, 다중 인스턴스 제어와 부하 검증은 별도 범위입니다. [확장과 한계](docs/extensions.md)
 
-- Spring MVC 요청 처리와 WebClient 병렬 호출을 조합합니다.
-- 외부 호출 중에는 DB 트랜잭션을 유지하지 않습니다.
-- 카탈로그 매핑은 저장하지만 실시간 요금과 재고는 저장하지 않습니다.
-- 공급사별 마지막 카탈로그 동기화 성공 상태를 저장해 정상적인 빈 카탈로그와 초기화 실패를 구분합니다.
-- 내부 ID는 UUID를 사용하고 외부 코드 재조회 시 기존 ID를 유지합니다.
-- 서로 다른 공급사의 유사 상품은 자동으로 병합하지 않습니다.
-- 가격은 세금을 포함한 전체 숙박 기간 결제 금액을 공통 기준으로 사용합니다.
-- 예약 가능 객실 수는 요청한 모든 숙박일의 재고 최솟값입니다.
-- 품절 상품은 검색 결과에서 제외합니다.
-- 유효한 관측 결과가 있으면 HTTP 200과 필요 시 부분 실패 metadata를 반환합니다.
-- 관측 결과가 없으면 C안에 따라 데이터 불능 502, 이용 불가 503, 내부 문제 500 등으로 구분합니다.
+## 상세 문서
 
-각 결정의 배경과 대안은 ADR에서 확인할 수 있습니다.
-
-### 선택의 이유와 손실
-
-| 선택 | 이유 | 감수하는 제약 |
-|---|---|---|
-| 세금 포함 총액을 기준으로 사용 | 사용자가 실제 지불할 금액의 의미를 통일 | 세액과 일자별 금액이 없는 상품은 세부 비교 불가 |
-| 제공된 세부 가격만 보존 | 임의 분배로 잘못된 정밀도를 만들지 않음 | 선택 필드가 `null`일 수 있음 |
-| 모든 숙박일의 재고 최솟값 사용, 품절 제외 | 전체 기간을 예약할 수 있는 상품만 탐색하게 함 | 응답만으로 품절 상품 목록은 알 수 없음 |
-| 공급사별 상품을 별도 노출 | 조식 등 조건 차이를 보존하고 오병합 방지 | 동일 숙소가 여러 결과에 나타날 수 있음 |
-| 시작 시 catalog 동기화 | 검색마다 정적 목록을 재조회하지 않고 안정적인 ID 확보 | 실행 중 변경은 다음 동기화 전까지 반영되지 않음 |
+- [검색 API](docs/api.md) · [Circuit Breaker 운영](docs/circuit-breaker.md) · [공급사 어댑터](docs/supplier-adapters.md)
+- [아키텍처](docs/architecture.md) · [도메인·ERD](docs/domain-model.md) · [카탈로그 동기화](docs/catalog-sync.md)
+- [장애 처리](docs/resilience.md) · [테스트](docs/testing.md) · [품질 검사](docs/quality.md)
+- [구현 상태](docs/implementation-plan.md) · [설계 결정 ADR](docs/adr/README.md)
+- [작업 기록](JOURNAL.md) · [AI 활용 기록](docs/ai-usage.md) · [정책 변경 이력](docs/policy-decisions.md)

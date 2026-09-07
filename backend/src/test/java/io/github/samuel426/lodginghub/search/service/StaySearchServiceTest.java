@@ -242,7 +242,9 @@ class StaySearchServiceTest {
     return new StaySearchService(
         query,
         clients,
-        new SearchObservation(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
+        new SearchObservation(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
+        new io.github.samuel426.lodginghub.supplier.service.SupplierAvailabilityGuard(
+            io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry.ofDefaults()));
   }
 
   private SupplierAvailabilityClient delayed(Supplier supplier, boolean slow) {

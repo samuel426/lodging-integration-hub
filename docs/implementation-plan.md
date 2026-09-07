@@ -1,153 +1,39 @@
-# Implementation Plan
+# 구현 현황과 제출 절차
 
-## 승인 절차
+필수 검색 흐름과 관측 기능은 PR #1~#5를 통해 `dev`에 반영했습니다. 현재 추가 범위는 설계 판단 중심 문서 정리와 공급사별 Circuit Breaker입니다.
 
-| Gate | 검토 대상 | 구현 진행 조건 |
+## 구현 현황
+
+| 범위 | 결과 | 검증 근거 |
 |---|---|---|
-| Gate 1 | 기술 스택, 주요 도메인 정책 | 승인 완료 |
-| Gate 2 | ERD, API, 패키지, 장애 정책 | 2026-09-04 C안 승인 및 기존 설계를 기준으로 구현 시작 허가 |
-| Gate 3 | 필수 검색 흐름과 테스트 결과 | 사용자 승인 후 선택 기능 결정 |
-| Gate 4 | README, Journal, 품질 검사 결과 | 승인 후 최종 병합 |
+| 실행 기반 | Java 21, Spring Boot, PostgreSQL/Flyway, WireMock | context, schema, 빌드 검사 |
+| Catalog | 안정적 UUID, 비활성화·재활성화, 공급사별 원자적 동기화 | [Catalog 문서](catalog-sync.md), DB·HTTP 테스트 |
+| Availability | 가격·재고 정규화, 50개 분할, 타임아웃과 실패 분류 | [어댑터 문서](supplier-adapters.md), 계약 테스트 |
+| 통합 검색 | 요청당 동시성 4, 내부 ID 연결, 유효 관측 기반 부분 성공 | [응답 정책](search-response-policy.md), S01~S16·Controller·HTTP 테스트 |
+| 관측·품질 | trace 전파, 지표, 안전한 로그, OpenAPI, CI | [품질 기록](quality.md), 로컬 smoke |
+| Circuit Breaker | 공급사별 차단, 제한된 복구 확인, 차단 상태 노출 | [설계와 검증](circuit-breaker.md), 상태·실제 HTTP 테스트 |
 
-## Phase 0 - Repository foundation
+## 이번 추가 기능의 선택 이유
 
-상태: 완료 - PR #1을 `dev`에 squash merge
+반복 장애에서도 매번 동일한 외부 응답을 기다리는 문제를 줄이는 데 집중했습니다. Circuit Breaker는 기존 타임아웃·부분 성공 정책을 확장하며 정상 공급사의 결과를 유지할 수 있습니다. 대신 공급사가 복구된 직후에도 재조회까지 기다려야 하는 시간이 생깁니다.
 
-- [x] 저장소 규칙 작성
-- [x] `main`, `dev`, feature branch 준비
-- [x] Java 21 및 Spring Boot 4.0.8 설정
-- [x] PostgreSQL, Flyway, JPA 구성
-- [x] WireMock Compose 구성
-- [x] Testcontainers context test
-- [x] Spotless와 JaCoCo
-- [x] 소프트 삭제와 catalog 부분 준비 정책 승인 기록
-- [x] 정규화 실패 응답 정책 확정: C안
-- [x] Gate 2 설계를 구현 기준으로 채택
-- [x] 사용자 구현 시작 허가
+자동 재시도는 지연과 외부 부하를 늘릴 수 있고, cache는 가격·재고의 오래된 값 허용 정책이 필요합니다. 이번에는 함께 넣지 않습니다. [미구현 확장과 한계](extensions.md)는 현재 기능과 구분해 기록합니다.
 
-2026-09-04 사용자가 C안 추천과 구현 시작을 승인했습니다. 이전 구현 보류를 해제하고 첫 단위인 catalog mapping부터 기능별 브랜치로 진행합니다. 선택 기능이나 새로운 제품 정책의 승인을 포함하지 않습니다.
+## 결정과 병합 경계
 
-예상 커밋:
+| 단계 | 상태 |
+|---|---|
+| Gate 1: 기술 스택·주요 정책 | 승인 완료 |
+| Gate 2: 도메인·API·장애 정책과 구현 시작 | 2026-09-04 승인 완료 |
+| Gate 3: 선택 기능 | 2026-09-07 문서 정리와 Circuit Breaker 구현 승인 |
+| Gate 4: 제출본 최종 검토 | 품질 결과와 문서를 검토한 뒤 `dev → main` 최종 병합 승인 필요 |
 
-```text
-🚀 infra: 백엔드 실행 기반 구성
-📝 docs: 통합 검색 설계와 결정 기록
-```
+세부 차단 설정값은 운영 실측에 기반한 확정 정책이 아니라 구현·검증용 초기값입니다. 사용자 승인 범위와 구체화 과정은 [정책 대장](policy-decisions.md), [작업 기록](../JOURNAL.md), [AI 활용 기록](ai-usage.md)에서 추적합니다.
 
-## Phase 1 - Catalog mapping
+## 제출 전 확인
 
-브랜치: `feat/catalog-sync`
-
-상태: 구현 및 로컬 검증 완료. 검색 API는 포함하지 않습니다.
-
-2026-09-06 검토 보완: HTTP 본문 중단의 실패 격리, JSON 필드 중복 거부, JDBC 상세값 비노출을 추가하고 전체 69건·Spotless·PMD·build를 통과했습니다.
-
-- Flyway V1 schema
-- Stay와 RoomType Entity
-- Supplier stay/room mapping Entity
-- Supplier catalog sync state Entity
-- 외부 catalog 공통 모델과 client port
-- Supplier A/B catalog adapter
-- Supplier 단위 upsert와 비활성화
-- startup synchronization
-- idempotency 및 실패 격리 테스트
-- catalog metric과 로그
-
-검증 결과: 전체 테스트 61건(실패·오류·skip 0), PMD/Spotless/build 통과. 기본 실행 JAR로 시작 시 동기화 및 동일 DB 재시작 시 UUID 유지 확인. HTTP timeout과 인증·본문 오류를 포함한 catalog 계약/DB 통합 검증은 [테스트 기록](testing.md#2026-09-04-catalog-구현-검증)에 있습니다.
-
-완료 조건:
-
-- 반복 sync에서 내부 UUID가 유지됩니다.
-- 정상적인 빈 catalog와 첫 동기화 실패가 구분됩니다.
-- 객실 외부 키의 숙소 범위 유일성이 DB에서 보장됩니다.
-- Supplier 하나의 실패가 다른 Supplier 반영을 막지 않습니다.
-- 외부 호출 중 DB 트랜잭션이 열리지 않습니다.
-
-## Phase 2 - Supplier availability adapters
-
-브랜치: `feat/supplier-adapters`
-
-상태: 어댑터·정규화·50개 분할과 HTTP 계약 테스트 구현. [어댑터 문서](supplier-adapters.md)에 경계와 mock 사용법을 기록합니다.
-
-- WebClient 공통 설정
-- connect/response timeout
-- API key header 처리
-- Supplier별 request/response DTO
-- HTTP 및 본문 실패 판정
-- 가격과 재고 정규화
-- 50개 batch 분할
-- WireMock 정상, 오류, 무응답 fixture
-- Supplier 계약 테스트
-
-완료 조건:
-
-- Supplier DTO가 adapter 외부로 노출되지 않습니다.
-- 서로 다른 가격 형식이 동일한 total gross 의미를 가집니다.
-- timeout과 두 종류의 실패 표현을 공통 결과로 변환합니다.
-- fixture를 이용해 장애 모드를 재현할 수 있습니다.
-
-## Phase 3 - Unified search
-
-브랜치: `feat/unified-search`
-
-상태: 검색 Controller, 전체 공급사 배치 동시성 4, 내부 UUID 연결, C안 S01~S16과 OpenAPI 계약 구현.
-
-- 검색 query validation
-- 활성 mapping 조회 projection
-- Supplier와 batch 단위 병렬 orchestration
-- concurrency 4 제한
-- 내부 UUID 연결
-- 품절 offer 제외
-- 부분 성공 metadata
-- 개별 offer 거절 건수
-- 미준비 Supplier catalog 목록
-- C안의 유효한 관측 기반 200 및 원인별 500/502/503
-- Controller/Slice 및 통합 테스트
-- OpenAPI 문서
-
-완료 조건:
-
-- 정상 검색이 모든 Supplier의 offer를 반환합니다.
-- 한 Supplier가 무응답이어도 제한 시간 안에 다른 결과를 반환합니다.
-- 일부 batch 실패에도 성공 batch 결과가 유지됩니다.
-- 응답에 외부 식별자가 노출되지 않습니다.
-
-## Phase 4 - Observability and quality
-
-브랜치: `feat/integration-observability`
-
-상태: trace 전파·지표·구조화 로그·CI·로컬 smoke 구현. 최종 품질 검사와 사용자 검토를 준비합니다.
-
-- traceId filter와 응답 연계
-- Supplier별 호출 횟수, 성공률, 지연, timeout metric
-- catalog sync metric
-- structured logging field 정리
-- GitHub Actions test/build/format
-- secret scan
-- 전체 문서와 실행 예시 갱신
-
-## 선택 기능 결정
-
-Gate 3에서 필수 흐름의 완성도와 남은 시간을 확인한 뒤 선택합니다.
-
-우선순위:
-
-1. Resilience4j retry와 circuit breaker
-2. 정규화 실패 데이터 격리
-3. 요금/재고 cache 설계
-4. 서로 다른 통화 처리 설계
-5. 중복 숙소 matching 설계
-6. 예약 생성/취소 및 보상 설계
-
-필수 흐름의 테스트와 문서가 부족하면 선택 기능을 구현하지 않고 설계만 남깁니다.
-
-현재 고려 중인 선택 기능의 경계와 위험은 [확장 설계](extensions.md)에 정리합니다. 이 문서는 해당 기능의 구현 승인을 의미하지 않습니다.
-
-## 최종 완료 조건
-
-- README 명령으로 새로운 환경에서 실행할 수 있습니다.
-- OpenAPI와 실제 Controller 계약이 일치합니다.
-- 설계 문서의 결정이 코드와 테스트에 반영됩니다.
-- test, format, build, secret scan이 통과합니다.
-- 외부 원문 문서, 실제 secret, 특정 조직 식별 정보가 저장소에 없습니다.
-- JOURNAL과 AI 활용 기록에 수용, 수정, 거부한 판단이 남아 있습니다.
+- README의 명령으로 실행하고 Swagger에서 실제 검색 API를 호출합니다.
+- 정상·부분 장애·차단·복구 동작을 실행 JAR로 확인합니다.
+- 전체 테스트, 포맷, 정적 분석, 빌드, 비밀정보 및 실행 JAR 취약점 검사를 통과합니다.
+- 문서의 현재 동작과 미구현 범위를 코드·OpenAPI와 맞춥니다.
+- 기능 PR을 `dev`로 squash merge하고, 최종 검토 후 `main`에 제출본을 반영합니다.

@@ -1,7 +1,10 @@
 package io.github.samuel426.lodginghub.search.service;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.samuel426.lodginghub.supplier.model.AvailabilityCondition;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -34,8 +37,15 @@ import tools.jackson.databind.json.JsonMapper;
 @Testcontainers
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = {"suppliers.request-timeout=3s", "suppliers.response-timeout=3s"})
+    properties = {
+      "suppliers.request-timeout=3s",
+      "suppliers.response-timeout=3s",
+      "suppliers.circuit-breaker.sliding-window-size=4",
+      "suppliers.circuit-breaker.minimum-number-of-calls=4",
+      "suppliers.circuit-breaker.wait-duration-in-open-state=3s"
+    })
 class SearchIntegrationTest {
+  private static final String OFFERS_PATH = "/data/offers";
   private static final String TRACE_HEADER = "X-Correlation-Id";
   private static final String QUERY =
       "/api/v1/stays/search?checkIn=2026-10-10&checkOut=2026-10-12&adults=2&children=0";
@@ -64,11 +74,71 @@ class SearchIntegrationTest {
   @LocalServerPort int port;
   @Autowired StaySearchService service;
   @Autowired PlatformTransactionManager transactions;
+  @Autowired CircuitBreakerRegistry circuits;
 
   @BeforeEach
   void reset() throws Exception {
+    circuits.getAllCircuitBreakers().forEach(CircuitBreaker::reset);
     admin("POST", "/__admin/scenarios/reset", "{}");
     admin("DELETE", "/__admin/requests", "{}");
+  }
+
+  @Test
+  void persistentSupplierFailureStopsHttpCallsAndRecoversThroughRealProbes() throws Exception {
+    state("b", "error");
+    for (int i = 0; i < 4; i++) {
+      var failed = get(QUERY);
+      assertThat(failed.statusCode()).isEqualTo(200);
+      assertThat(JSON.readTree(failed.body()).at("/meta/supplierFailures/0/category").asString())
+          .isEqualTo("UPSTREAM_ERROR");
+    }
+    var circuit = circuits.circuitBreaker("SUPPLIER_B");
+    assertThat(circuit.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+    state("b", "Started");
+    var blocked = get(QUERY);
+    assertThat(blocked.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(blocked.body()).at(OFFERS_PATH).size()).isEqualTo(1);
+    assertThat(JSON.readTree(blocked.body()).at("/meta/supplierFailures/0/category").asString())
+        .isEqualTo("CIRCUIT_OPEN");
+    assertThat(availabilityRequests("/b/api/search")).isEqualTo(4);
+    await()
+        .atMost(Duration.ofSeconds(6))
+        .pollInterval(Duration.ofMillis(100))
+        .untilAsserted(
+            () -> {
+              var recovered = get(QUERY);
+              assertThat(JSON.readTree(recovered.body()).at(OFFERS_PATH).size()).isEqualTo(2);
+            });
+    assertThat(circuit.getState()).isEqualTo(CircuitBreaker.State.HALF_OPEN);
+    assertThat(get(QUERY).statusCode()).isEqualTo(200);
+    assertThat(circuit.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+    assertThat(availabilityRequests("/b/api/search")).isEqualTo(6);
+  }
+
+  @Test
+  void bothCircuitsBlockedReturn503AndNewCategoryIsInOpenApi() throws Exception {
+    circuits.getAllCircuitBreakers().forEach(CircuitBreaker::transitionToOpenState);
+    var response = get(QUERY);
+    assertThat(response.statusCode()).isEqualTo(503);
+    assertThat(JSON.readTree(response.body()).at("/error/code").asString())
+        .isEqualTo("ALL_SUPPLIERS_UNAVAILABLE");
+    assertThat(availabilityRequests("/a/v1/availability")).isZero();
+    assertThat(availabilityRequests("/b/api/search")).isZero();
+    assertThat(get("/v3/api-docs").body()).contains("CIRCUIT_OPEN");
+  }
+
+  private int availabilityRequests(String path) throws Exception {
+    var response =
+        HTTP.send(
+            HttpRequest.newBuilder(URI.create(mockUrl() + "/__admin/requests")).GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+    int count = 0;
+    for (var request : JSON.readTree(response.body()).path("requests")) {
+      if (request.at("/request/url").asString().startsWith(path + "?")) {
+        count++;
+      }
+    }
+    return count;
   }
 
   @Test
@@ -114,7 +184,7 @@ class SearchIntegrationTest {
     var response = get(QUERY);
     assertThat(response.statusCode()).isEqualTo(200);
     var body = JSON.readTree(response.body());
-    assertThat(body.at("/data/offers").size()).isEqualTo(2);
+    assertThat(body.at(OFFERS_PATH).size()).isEqualTo(2);
     assertThat(body.at("/data/offers/0/price/totalAmount").asLong()).isEqualTo(220000);
     assertThat(body.at("/data/offers/1/price/totalAmount").asLong()).isEqualTo(236000);
     assertThat(body.at("/data/offers/1/price/taxAmount").isNull()).isTrue();
@@ -134,7 +204,7 @@ class SearchIntegrationTest {
     assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(6));
     assertThat(response.statusCode()).isEqualTo(200);
     var body = JSON.readTree(response.body());
-    assertThat(body.at("/data/offers").size()).isEqualTo(1);
+    assertThat(body.at(OFFERS_PATH).size()).isEqualTo(1);
     assertThat(body.at("/meta/partial").asBoolean()).isTrue();
     assertThat(body.at("/meta/supplierFailures/0/category").asString()).isEqualTo("TIMEOUT");
   }

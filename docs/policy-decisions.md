@@ -1,8 +1,8 @@
 # Policy Decision Register
 
-최종 갱신: 2026-09-04
+최종 갱신: 2026-09-07
 
-사용자가 승인한 정책과 검토 중인 제안을 구분합니다. 정책 승인과 구현 시작 허가는 별개입니다. 2026-09-04 사용자가 C안 추천을 승인하고 구현 시작을 명시적으로 요청했습니다. 승인된 설계를 기준으로 기능별 브랜치와 PR 절차를 진행합니다.
+서비스 동작에 영향을 주는 사용자 승인과 구현 과정의 구체화를 기록합니다. 현재 정책의 이유와 손실은 각 항목에서, 과거 제안 변경은 이력에서 확인할 수 있습니다.
 
 ## 승인 현황
 
@@ -11,6 +11,7 @@
 | POL-001 | 사라진 외부 상품 mapping의 소프트 삭제와 ID 유지 | Accepted | 2026-09-04 | catalog 구현·DB 테스트 완료 |
 | POL-002 | 일부 Supplier catalog만 준비된 상태의 검색 허용 | Accepted | 2026-09-04 | 준비 상태 및 검색 HTTP 연계 구현·검증 완료 |
 | POL-003 | 정규화 실패와 정상 빈 결과를 구분하는 검색 응답(C안) | Accepted | 2026-09-04 | S01~S16 및 HTTP 계약 검증 완료 |
+| POL-004 | 공급사별 availability Circuit Breaker | Accepted | 2026-09-07 | 상태 전환·실제 HTTP 차단·복구 검증 |
 
 이전 기술 스택과 가격 기준 등의 합의는 [ADR 목록](adr/README.md)과 [작업 기록](../JOURNAL.md)에 있습니다. 이 대장은 이번 정책 검토부터 승인 단위를 식별자로 추적합니다. 아래 승인 근거는 사용자 의견의 요약이며 발언 전문을 옮긴 것이 아닙니다.
 
@@ -69,7 +70,7 @@
 - 검증 계획: [Catalog 테스트](testing.md#catalog)
 - 구현: [CatalogQueryService](../backend/src/main/java/io/github/samuel426/lodginghub/catalog/service/CatalogQueryService.java), [CatalogSnapshot](../backend/src/main/java/io/github/samuel426/lodginghub/catalog/dto/CatalogSnapshot.java)
 - 실행된 검증: [CatalogIntegrationTest](../backend/src/test/java/io/github/samuel426/lodginghub/catalog/service/CatalogIntegrationTest.java)의 `distinguishesNeverReadyFromValidatedEmptyCatalog`, `failurePreservesOldSnapshotAndOtherSupplierStillCommits`, `timeoutDoesNotBlockOtherSupplierOrBecomeEmptySuccess` 통과.
-- 남은 범위: 미준비 목록을 검색 HTTP metadata에 연결하고 503/200 응답을 검증하는 작업은 Phase 3입니다.
+- 검색 연결: 미준비 목록과 503/200 응답은 통합 검색 및 실제 HTTP 테스트에서 검증했습니다.
 
 ## POL-003: 정규화 실패 시 응답
 
@@ -92,6 +93,17 @@
 - 확정 계약: [ADR 0005](adr/0005-return-partial-search-results.md), [검색 API](api.md), [견고성 문서](resilience.md)
 - 검증 계획: [Failure handling](testing.md#failure-handling)
 - 구현: `StaySearchService`, `SearchAggregation`. 실행 검증: `StaySearchServiceTest.approvedScenariosS01ThroughS16`, `StaySearchControllerTest`, `SearchIntegrationTest`.
+
+## POL-004: 반복 장애 공급사 차단
+
+사용자는 필수 기능에 더해 문서를 설계 판단 중심으로 정리하고 Circuit Breaker 하나를 완성하도록 요청했습니다. 자동 재시도, cache, 다른 선택 기능과 최종 main 병합은 이 범위에 포함하지 않습니다.
+
+같은 공급사 장애를 매 검색에서 계속 기다리는 비용을 줄이고, 정상 공급사 결과를 보존하는 것이 목적입니다. 그 대가로 복구 직후의 공급사 결과를 잠시 놓칠 수 있습니다. 차단 사실은 `CIRCUIT_OPEN`과 부분 성공 metadata에 공개하며, 유효한 관측이 없으면 기존 503 정책을 유지합니다.
+
+공급사별 상태 분리, 일시적 이용 불가 오류만 집계, 제한된 복구 확인과 그 시간 상한을 구현했습니다. 최근 10회·실패율 50%·차단 10초·복구 확인 2회/최대 5초는 구현자가 선택한 검증 가능한 초기값입니다. 사용자가 각 수치를 개별 지정했거나 운영 지표로 최적화했다고 기록하지 않습니다.
+
+- 판단과 대안: [ADR 0007](adr/0007-protect-supplier-availability.md)
+- 동작·설정·손실·검증: [Circuit Breaker](circuit-breaker.md)
 
 ## 기록 규칙
 

@@ -1,8 +1,8 @@
 # Extensions and Limitations
 
-상태: Design candidates - 구현 승인 전
+상태: 현재 한계와 미구현 확장 후보
 
-핵심 검색 흐름 이후에 고려할 설계입니다. 아래 내용은 현재 제공하는 기능이나 보장이 아니며, 비용과 실패 위험을 설명하기 위한 후보입니다. 상세 설정값과 구현 여부는 핵심 흐름 검증 후 결정합니다.
+검색, 개별 offer 실패 격리와 [공급사별 Circuit Breaker](circuit-breaker.md)는 구현했습니다. 아래에서는 현재 동작을 먼저 밝히고, 추가 비용과 정책 결정이 필요한 확장을 구분합니다. 자동 재시도, cache, 환산, 자동 병합, 예약은 현재 제공하지 않습니다.
 
 ## 요금과 재고 cache
 
@@ -18,7 +18,7 @@
 
 ## 정규화 실패 격리
 
-현재 제안은 유효한 offer를 유지하고 제외한 offer 수와 원인 지표를 남기는 수준입니다. 원문을 장기 보관하는 격리 저장소는 포함하지 않습니다.
+현재 구현은 유효한 offer를 유지하고 제외한 offer 수와 원인 지표를 남기는 수준입니다. 원문을 장기 보관하는 격리 저장소는 포함하지 않습니다.
 
 확장한다면 다음을 적용합니다.
 
@@ -56,7 +56,7 @@
 
 ## 운영 규모 확장
 
-- 계획된 concurrency는 검색 요청당 상한입니다. 전역 및 Supplier별 bulkhead와 connection-pool pending acquire 상한은 동시 사용자 부하 테스트 후 결정해야 합니다.
+- 현재 concurrency 4는 검색 요청당 상한입니다. 전역 및 Supplier별 bulkhead와 connection-pool pending acquire 상한은 동시 사용자 부하 테스트 후 결정해야 합니다.
 - 수천 개 숙소를 모두 검색하면 batch 실행 구간이 누적됩니다. 전체 검색 deadline을 도입할 때는 실행하지 못한 batch까지 부분 실패로 알리는 계약이 필요합니다.
 - 시작 시 동기화는 단일 인스턴스를 전제로 합니다. 다중 인스턴스에서는 Supplier별 lock 또는 단일 scheduler, 충돌 시 재시도와 snapshot version을 검토해야 합니다.
 - 주기적 동기화는 완전한 snapshot만 원자적으로 반영합니다. 외부 pagination이 추가되면 모든 page를 검증하기 전에 누락 상품을 비활성화하면 안 됩니다.
