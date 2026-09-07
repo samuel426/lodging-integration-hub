@@ -6,6 +6,7 @@ import io.github.samuel426.lodginghub.global.config.CorrelationIdFilter;
 import io.github.samuel426.lodginghub.search.dto.SearchResponse;
 import io.github.samuel426.lodginghub.supplier.client.SupplierAvailabilityClient;
 import io.github.samuel426.lodginghub.supplier.model.*;
+import io.github.samuel426.lodginghub.supplier.service.SupplierAvailabilityGuard;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,13 +25,16 @@ public class StaySearchService {
   private final CatalogQueryService catalog;
   private final Map<Supplier, SupplierAvailabilityClient> clients;
   private final SearchObservation observation;
+  private final SupplierAvailabilityGuard guard;
 
   public StaySearchService(
       CatalogQueryService catalog,
       List<SupplierAvailabilityClient> clients,
-      SearchObservation observation) {
+      SearchObservation observation,
+      SupplierAvailabilityGuard guard) {
     this.catalog = catalog;
     this.observation = observation;
+    this.guard = guard;
     this.clients =
         clients.stream()
             .collect(
@@ -87,7 +91,10 @@ public class StaySearchService {
                                           ? Mono.just(
                                               SupplierBatchOutcome.failed(
                                                   SupplierFailureCategory.INVALID_REQUEST))
-                                          : client.fetchAvailability(job.request());
+                                          : guard.protect(
+                                              job.supplier(),
+                                              Mono.defer(
+                                                  () -> client.fetchAvailability(job.request())));
                                     })
                                 .switchIfEmpty(
                                     Mono.error(
